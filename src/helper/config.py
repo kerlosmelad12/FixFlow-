@@ -5,13 +5,19 @@ class Settings(BaseSettings):
     APP_VERSION: str
 
     # Question Variables
-    QUESTION_MIN_LENGTH: str
-    QUESTION_MAX_LENGTH: str
     ERROR_KEYWORDS: str
+    QUESTION_MAX_LENGTH:int
+    QUESTION_MIN_LENGTH:int
+
+
+    #Database Configuration
+    DB_NAME:str
+    mongoDB_URI:str
+
 
 
     def get_error_keywords(self):
-        return [kw.strip() for kw in self.ERROR_KEYWORDS.split(",")]
+      return [kw.strip() for kw in self.ERROR_KEYWORDS.split(",")]
  
 
     class Config:
