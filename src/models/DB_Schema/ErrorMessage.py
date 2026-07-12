@@ -8,10 +8,10 @@ class ErrorMessage(BaseModel):
     error_id:str=Field(...,min_length=1)
     error_tag_ids: Optional[List[ObjectId]] = []
 
-
+    error_title:str=Field(...,min_length=1)
     error_type: Optional[str] = None
     error_text: str = Field(..., min_length=1)
-    error_signature: Optional[str] = None 
+    error_signature: Optional[str] = None
      
     raw_extracted_tags: Optional[List[str]] = [] # All tags
        

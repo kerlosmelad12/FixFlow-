@@ -21,3 +21,5 @@ class DataController(BaseController):
 
         return True, ErrorEnums.ERROR_VALIDATED.value
     
+    
+    
