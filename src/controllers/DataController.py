@@ -20,3 +20,4 @@ class DataController(BaseController):
           return False, ErrorEnums.ERROR_CONTANT_NOT_APPROVED.value
 
         return True, ErrorEnums.ERROR_VALIDATED.value
+    

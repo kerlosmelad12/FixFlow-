@@ -4,6 +4,8 @@ class UserQueryRequest(BaseModel):
     query: str = Field(
         ...,
     )
-    tags:Optional[list]
-    number_similer_questions:Optional[int]
+    tags:list[str]=Field(...)
+    programing_language:str=Field(...)
+
+    
     

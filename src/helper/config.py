@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     #Database Configuration
     DB_NAME:str
-    mongoDB_URI:str
+    MONGODB_URI:str
 
 
 

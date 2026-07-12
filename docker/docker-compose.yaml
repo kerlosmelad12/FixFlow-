@@ -3,7 +3,7 @@ services:
     image: mongo:7.0
     container_name: mongodb
     ports:
-      - "27007:27017"
+      - "27017:27017"
     volumes:
       - ./mongodb:/data/db
     networks:
