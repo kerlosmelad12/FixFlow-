@@ -5,6 +5,9 @@ class DataController(BaseController):
         super().__init__()
 
     def validate_error(self, error: str):
+        if error.strip() == "": 
+           return False, ErrorEnums.NOT_APPROVED_SIZE.value
+
         if len(error) < self.app_settings.QUESTION_MIN_LENGTH:
           return False, ErrorEnums.NOT_APPROVED_SIZE.value
 
@@ -21,5 +24,7 @@ class DataController(BaseController):
 
         return True, ErrorEnums.ERROR_VALIDATED.value
     
+
     
+
     

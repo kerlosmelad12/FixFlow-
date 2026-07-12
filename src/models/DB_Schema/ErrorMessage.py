@@ -2,6 +2,7 @@ from pydantic import BaseModel,Field,validator
 from typing import Optional,List
 from bson.objectid import ObjectId
 from datetime import datetime
+from ..Enums.ErrorSource import ErrorSource
 
 class ErrorMessage(BaseModel):
     id: Optional[ObjectId] = Field(None, alias="_id")
@@ -15,7 +16,7 @@ class ErrorMessage(BaseModel):
      
     raw_extracted_tags: Optional[List[str]] = [] # All tags
        
-    source: Optional[str] = None              
+    source: Optional[str] = ErrorSource.GITHUB.value             
     created_at: datetime = Field(default=datetime.utcnow)
     answer_ids: Optional[List[ObjectId]] = []
 

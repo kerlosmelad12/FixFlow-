@@ -1,8 +1,11 @@
 from fastapi import APIRouter,Depends,status
 from fastapi.responses import JSONResponse
 from helper import get_settings,Settings
-from controllers import DataController
+from controllers.DataController import DataController
+from controllers.ProcessController import ProcessController
 from .schema.ErrorRequest import UserQueryRequest
+
+
 data_app=APIRouter(
     prefix="/Fixflow-V1/data",
           tags=['data','V1'])
@@ -31,3 +34,11 @@ def upload_error_data(error_id: str, error: UserQueryRequest):
             "error": query
         }
     )
+@data_app.post("/process/")
+def process_error_data(user_request: UserQueryRequest):
+    process_controller=ProcessController()
+    return  process_controller.process_new_error(user_request)
+    
+
+
+    

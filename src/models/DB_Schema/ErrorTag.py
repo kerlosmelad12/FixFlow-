@@ -2,9 +2,8 @@ from pydantic import BaseModel,Field,validator
 from typing import Optional,List
 from bson.objectid import ObjectId
 from datetime import datetime
-from Enums.TagStatus import TagStatus
-from Enums.TagsCategory import TagCategory
-
+from ..Enums.TagCategory import TagCategory
+from ..Enums.TagStatus import TagStatus
 class ErrorTag(BaseModel):
     id: Optional[ObjectId] = Field(None, alias="_id")
     tag_name:str =Field(...,min_length=1)

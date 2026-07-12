@@ -20,6 +20,7 @@ async def startup_db_client():
     try:
         LLMService.get_langchain_pipeline()
         logger.info("LLM loaded successfully.")
+        
     except Exception as e:
         logger.exception(f"Failed to load LLM: {e}")
 
