@@ -16,33 +16,17 @@ app = FastAPI()
 @app.on_event("startup")
 async def startup_db_client():
     logger.info("Application startup initiated.")
+    app.llm = LLMService.get_model()
+    logger.info("LLM loaded successfully.")
+    settings = get_settings()
+    app.mongo_conn = AsyncIOMotorClient(settings.MONGODB_URI)
+    app.db_client = app.mongo_conn[settings.DB_NAME]
 
-    try:
-        LLMService.get_langchain_pipeline()
-        logger.info("LLM loaded successfully.")
-        
-    except Exception as e:
-        logger.exception(f"Failed to load LLM: {e}")
-
-    try:
-        settings = get_settings()
-
-        app.mongo_conn = AsyncIOMotorClient(settings.MONGODB_URI)
-        app.db_client = app.mongo_conn[settings.DB_NAME]
-
-        logger.info("MongoDB connected successfully.")
-    except Exception as e:
-        logger.exception(f"Failed to connect to MongoDB: {e}")
-        raise
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    logger.info("Application shutdown")
-    try:
        app.mongo_conn.close()
-    except Exception as e:
-        logger.exception(f"Failed to close MongoDB: {e}")
-        raise
+
 
 
 

@@ -11,7 +11,7 @@ Output format:
   "error_title": "a short, clear title summarizing the error (max 10 words)",
   "tags": ["lowercase", "technical", "keywords"],
   "error_type": "one of: syntax_error, runtime_error, dependency_conflict, import_error, configuration_error, network_error, database_error, type_error, value_error, timeout_error, build_error, plugin_error, unknown",
-  "error_signature": "the error text with random ids/hashes/variable parts replaced by <ID>"
+  "error_signature": "error_signature": "ONLY the core error line(s), max 20 words. Do NOT include surrounding code, config files, or context — just the error message itself with random ids replaced by <ID>"
 }}
 
 Example 1:

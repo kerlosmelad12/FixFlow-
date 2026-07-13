@@ -1,9 +1,12 @@
-from fastapi import APIRouter,Depends,status
+from fastapi import APIRouter,Depends,status,Request
 from fastapi.responses import JSONResponse
 from helper import get_settings,Settings
 from controllers.DataController import DataController
 from controllers.ProcessController import ProcessController
+from controllers.ProcessController import ProcessController
 from .schema.ErrorRequest import UserQueryRequest
+from models.DB_Schema.ProcessingJob import ProcessingJob
+ 
 
 
 data_app=APIRouter(
@@ -13,10 +16,11 @@ data_app=APIRouter(
 
 # upload user query
 
-@data_app.post("/upload/{error_id}")
-def upload_error_data(error_id: str, error: UserQueryRequest):
+@data_app.post("/upload/")
+async def upload_error_data(res:Request, error: UserQueryRequest,app_setting=Depends(get_settings)):
     query=error.query
     data_controller = DataController()
+    process_controller=ProcessController()
 
     is_valid, signal = data_controller.validate_error(query)
 
@@ -27,11 +31,15 @@ def upload_error_data(error_id: str, error: UserQueryRequest):
                 "result": signal
             }
         )
+    clean=process_controller.clean_text(query)
+    extracted_error=process_controller.extract_error_data(clean,res.app.llm)
+
+
 
     return JSONResponse(
         content={
             "result": signal,
-            "error": query
+            "error": extracted_error
         }
     )
 @data_app.post("/process/")

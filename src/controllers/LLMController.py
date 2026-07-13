@@ -38,32 +38,21 @@ class LLMService:
                 device_map="auto",
                 cache_dir=settings.MODELS_CACHE_PATH
             )
-
-        return cls._model, cls._tokenizer
-
-    @classmethod
-    def get_pipeline(cls):
-        if cls._pipeline is None:
-            model, tokenizer = cls.get_model()
-
+            
             cls._pipeline = pipeline(
-                "text-generation",
-                model=model,
-                tokenizer=tokenizer,
-                max_new_tokens=512,
-                temperature=0.1,
-                do_sample=False,
-                return_full_text=False,
-            )
+                     "text-generation",
+                      model=cls._model,
+                      tokenizer=cls._tokenizer,
+                      max_new_tokens=510,
+                      do_sample=False,
+                      return_full_text=False,
 
-        return cls._pipeline
+                         )
 
-    @classmethod
-    def get_langchain_pipeline(cls):
-        if cls._langchain_pipeline is None:
-            hf_pipeline = cls.get_pipeline()
             cls._langchain_pipeline = HuggingFacePipeline(
-                pipeline=hf_pipeline
+                pipeline=cls._pipeline
             )
+
 
         return cls._langchain_pipeline
+   
