@@ -1,6 +1,7 @@
 from enum import Enum
 
 class CollectionValues(Enum):
-    ANSWERS="answers"
+    ERRORS="errors"
     QUESTIONS="questions"
     ERRORTAG="tags"
+    JOBS="jobs"

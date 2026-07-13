@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     DB_NAME: str
     MONGODB_URI: str
     
+    
     LLM_DATA_EXTRACTOR_PATH: str
     MODELS_CACHE_PATH: str
 

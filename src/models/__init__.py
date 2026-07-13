@@ -3,4 +3,7 @@ from .Enums.CollectionValues import CollectionValues
 from .Enums.TagStatus import TagStatus
 from .Enums.TagCategory import TagCategory
 from .Enums.ErrorSource import ErrorSource
-from .Enums.JobProcessingEnums import JobProcessinEnums
+from .Enums.JobProcessingEnums import JobProcessingEnums
+from .ErrorQueryModel import ErrorQueryModel
+from .DataBaseModel import DataBaseModel
+from .JobProcessingModel import JobProcessingModel

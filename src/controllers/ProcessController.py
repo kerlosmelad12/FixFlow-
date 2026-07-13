@@ -3,7 +3,7 @@ from routes.schema.ErrorRequest import UserQueryRequest
 from .LLMController import LLMService
 from .DataController import DataController
 from models.DB_Schema.ProcessingJob import ProcessingJob
-from models.Enums.JobProcessingEnums import JobProcessinEnums
+from models.Enums.JobProcessingEnums import JobProcessingEnums
 import re
 import html
 from prompts.extraction_prompts import build_extraction_prompt
@@ -29,9 +29,4 @@ class ProcessController(BaseController):
            return {"error": result["error"]} 
 
         return result
-    
-
-    
-
-
     
