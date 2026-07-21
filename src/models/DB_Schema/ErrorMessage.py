@@ -17,7 +17,7 @@ class ErrorMessage(BaseModel):
     raw_extracted_tags: Optional[List[str]] = [] # All tags
        
     source: Optional[str] = ErrorSource.GITHUB.value             
-    created_at: datetime = Field(default=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
     answer_ids: Optional[List[ObjectId]] = []
 
 

@@ -18,13 +18,16 @@ class ErrorQueryModel(DataBaseModel):
         return ErrorMessage(**result)
     
 
-    async def insert_error(self,error:ErrorMessage):
-        result=await self.ErrorCollection.insert_one(error.dict(by_alias=True, exclude_unset=True))
+    async def insert_error(self, error: ErrorMessage):
 
-        error.id=result.inserted_id  
+        result = await self.ErrorCollection.insert_one(error.dict(
+        by_alias=True,
+        exclude_none=True
+        ))
 
-        return result
-    
+        error.id = result.inserted_id
+
+        return error
     
     async def update_error(self, error_text: str, error_id: str):
         result = await self.ErrorCollection.find_one(

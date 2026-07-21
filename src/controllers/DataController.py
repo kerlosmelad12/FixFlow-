@@ -28,7 +28,7 @@ class DataController(BaseController):
         return True, ErrorEnums.ERROR_VALIDATED.value
     
     @classmethod
-    def generate_error_id(error_title: str, cleaned_text: str) -> str:
+    def generate_error_id(cls,error_title: str, cleaned_text: str):
       slug = re.sub(r'[^a-z0-9]+', '-', error_title.lower()).strip('-')
       slug = slug[:40]    
   
