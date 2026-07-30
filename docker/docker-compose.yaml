@@ -1,0 +1,20 @@
+services:
+  mongodb:
+    container_name: mongodb
+    image: mongo:7.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${DB_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "27007:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - backend
+    restart: always
+
+networks:
+  backend:
+
+volumes:
+  mongodb_data:
