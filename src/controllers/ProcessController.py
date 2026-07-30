@@ -1,6 +1,6 @@
 from .BaseController import BaseController
 from routes.schema.ErrorRequest import UserQueryRequest
-from .LLMController import LLMService
+from .NlpController import LLMService
 from .DataController import DataController
 from models.DB_Schema.ProcessingJob import ProcessingJob
 from models.Enums.JobProcessingEnums import JobProcessingEnums
