@@ -6,7 +6,8 @@ from ..LLMEnums import ChatRoles, TorchDType,Devicemap
 import os
 from controllers.BaseController import BaseController
 
-
+from huggingface_hub import snapshot_download
+from huggingface_hub.utils import LocalEntryNotFoundError
 
 class QweenProvider(LLMInterface):
 
@@ -43,54 +44,53 @@ class QweenProvider(LLMInterface):
 
             self.load_or_download_model(quant_config)
 
+
+
+
+
     def load_or_download_model(self, quant_config=None):
 
-        local_model_exists = os.path.exists(
-            os.path.join(self.model_path, "config.json")
-        )
-
-        if local_model_exists:
-
-            self.logger.info("Loading local model...")
+        try:
+            # Explicitly resolve the local snapshot path — no network call if cached
+            local_path = snapshot_download(
+                repo_id=self.model_name,
+                cache_dir=self.model_path,
+                local_files_only=True,
+            )
+            self.logger.info(f"Found model locally at: {local_path}")
 
             self.llm = AutoModelForCausalLM.from_pretrained(
-                self.model_path,
+                local_path,
                 local_files_only=True,
                 torch_dtype=self.torch_dtype,
                 device_map=self.device_map,
                 quantization_config=quant_config,
             )
-
             self.tokenizer = AutoTokenizer.from_pretrained(
-                self.model_path,
+                local_path,
                 local_files_only=True,
             )
+            self.logger.info("Loaded model from local cache.")
 
-        else:
+        except (LocalEntryNotFoundError, FileNotFoundError, OSError):
+            self.logger.info("Model not found locally. Downloading from HuggingFace...")
 
-            self.logger.info("Downloading model from HuggingFace...")
+            local_path = snapshot_download(
+                repo_id=self.model_name,
+                cache_dir=self.model_path,
+            )
 
             self.llm = AutoModelForCausalLM.from_pretrained(
-                self.model_name,
-                cache_dir=self.model_path,
+                local_path,
                 torch_dtype=self.torch_dtype,
                 device_map=self.device_map,
                 quantization_config=quant_config,
             )
-
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                self.model_name,
-                cache_dir=self.model_path,
-            )
+            self.tokenizer = AutoTokenizer.from_pretrained(local_path)
 
             self.logger.info("Model downloaded successfully.")
 
 
-    def process_text(self,text:str):
-         return text.strip()[0:self.input_max_chracters]
-
-
-    
 
     def set_generation_model(self, model_id: str):
 
@@ -120,12 +120,7 @@ class QweenProvider(LLMInterface):
 
     
 
-    def check_model_location(self, model_path,model_name):
-        if os.path.exists(model_path):
-            return True
-        else:
-            os.mkdir
-
+  
 
 
     def generate(self, promot :str ,messages: list[dict], max_new_tokens: int = 512,temperature:float=0.4) -> str:
@@ -137,7 +132,7 @@ class QweenProvider(LLMInterface):
             self.logger.error("llm not added")
 
         if promot:
-            messages = [self.construct_prompt(ChatRoles.SYSTEM.value, self.process_text(promot))] + messages
+            messages = [self.construct_prompt(ChatRoles.SYSTEM.value, promot)] + messages
 
         text = self.tokenizer.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True

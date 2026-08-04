@@ -5,38 +5,21 @@ from helper import get_settings
 class BaseController:
     def __init__(self):
         self.app_settings = get_settings()
+        self.base_dir = os.path.dirname(os.path.dirname(__file__))  # .../src
+        self.database_dir = os.path.join(self.base_dir, "assests", "Database")
+        self.models_dir = os.path.join(self.base_dir, "assests", "LLMModels")
 
-        self.base_dir = os.path.dirname(os.path.dirname(__file__))
+        os.makedirs(self.database_dir, exist_ok=True)
+        os.makedirs(self.models_dir, exist_ok=True)
 
-        self.database_dir = os.path.join(
-            self.base_dir,
-            "assests",
-            "Database"
-        )
+    def get_model_path(self, model_name: str = None) -> str:
+        # HuggingFace's own models--org--name naming already namespaces
+        # each model uniquely inside this shared cache folder.
+        # Do NOT join model_name here — that caused nested/duplicate
+        # cache paths and repeated re-downloads.
+        return self.models_dir
 
-        self.models_dir = os.path.join(
-            self.base_dir,
-            "assests",
-            "LLMModels"
-        )
-
-    def get_model_path(self, model_name: str):
-        model_path = os.path.join(
-            self.models_dir,
-            model_name
-        )
-
-        os.makedirs(model_path, exist_ok=True)
-
-        return model_path
-
-    def get_database_path(self, db_name: str):
-    
-        database_path = os.path.join(
-                self.database_dir, db_name
-            )
-    
-        if not os.path.exists(database_path):
-                os.makedirs(database_path)
-    
+    def get_database_path(self, db_name: str) -> str:
+        database_path = os.path.join(self.database_dir, db_name)
+        os.makedirs(database_path, exist_ok=True)
         return database_path

@@ -2,12 +2,11 @@ from pydantic import BaseModel,Field,validator
 from typing import Optional,List
 from bson.objectid import ObjectId
 from datetime import datetime
-from ..Enums.ErrorSource import ErrorSource
+from ..Enums.ErrorEnums import ErrorSource
 
 class ErrorMessage(BaseModel):
     id: Optional[ObjectId] = Field(None, alias="_id")
     error_id:str=Field(...,min_length=1)
-    error_tag_ids: Optional[List[ObjectId]] = []
 
     error_title:str=Field(...,min_length=1)
     error_type: Optional[str] = None

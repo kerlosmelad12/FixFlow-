@@ -34,13 +34,23 @@ async def startup_application():
 
     logger.info("Embedding model loaded successfully.")
 
+    
+
     app.generation=llm_factory.create(provider=settings.GENERATION_BACKEND)
 
     logger.info("Generation model loaded successfully.")
 
+
+
     app.classifier=classifier_factory.create(provider=settings.CLASSIFIER_BACKEND)
 
+    app.classifier.load_model()
+    app.classifier.load_label_encoder()
+    app.classifier.load_text_encoder()
+
     logger.info("Classifier model loaded successfully.")
+
+
 
     app.vectordb=vectordb_factory.create(provider=settings.VECTOR_STORE_BACKEND)
     app.vectordb.set_distance_metric(distance_metric=settings.DISTANCE_METRIC)
@@ -53,6 +63,7 @@ async def startup_application():
 
     app.mongo_conn = AsyncIOMotorClient(settings.MONGODB_URI)
     app.db_client = app.mongo_conn[settings.DB_NAME]
+
 
 
 @app.on_event("shutdown")

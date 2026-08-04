@@ -14,7 +14,6 @@ class Settings(BaseSettings):
     # Question validation
     QUESTION_MIN_LENGTH: int = Field(gt=0)
     QUESTION_MAX_LENGTH: int = Field(gt=0)
-    ERROR_KEYWORDS: str
 
     # Database
     DB_NAME: str
@@ -31,6 +30,8 @@ class Settings(BaseSettings):
     LOAD_IN_4BIT: bool = False
     LLM_API_KEY: SecretStr = SecretStr("")
     LLM_API_BASE_URL: str = ""
+    GROQ_API_KEY: str
+    GROQ_MODEL_NAME: str
 
     # Embedding
     EMBEDDING_MODEL_NAME: str
@@ -66,13 +67,6 @@ class Settings(BaseSettings):
     )
 
 
-  
-    def error_keywords_list(self) -> list[str]:
-        return [kw.strip() for kw in self.ERROR_KEYWORDS.split(",") if kw.strip()]
-
-  
-    def tfidf_ngram_range(self) -> tuple[int, int]:
-        return (self.TFIDF_NGRAM_RANGE_MIN, self.TFIDF_NGRAM_RANGE_MAX)
 
 
 def get_settings() -> Settings:
