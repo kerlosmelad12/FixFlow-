@@ -1,6 +1,8 @@
 from .DataBaseModel import DataBaseModel
 from .Enums.CollectionValues import CollectionValues
 from .DB_Schema.ErrorMessage import ErrorMessage
+from bson import ObjectId
+
 class ErrorQueryModel(DataBaseModel):
        
     def __init__(self, db_client: object):
@@ -8,7 +10,7 @@ class ErrorQueryModel(DataBaseModel):
         self.ErrorCollection=self.db_client[CollectionValues.QUESTIONS.value]
 
 
-    async def get_error(self,error_id:str):
+    async def get_error_by_error_id(self,error_id:str):
         result = await self.ErrorCollection.find_one(
         {"error_id": error_id}
       )
@@ -16,6 +18,16 @@ class ErrorQueryModel(DataBaseModel):
             return None
         
         return ErrorMessage(**result)
+
+    async def get_error_by_id(self, id: str):
+        result = await self.ErrorCollection.find_one(
+            {"_id": ObjectId(id)}
+        )
+
+        if result is None:
+            return None
+
+        return result
     
 
     async def insert_error(self, error: ErrorMessage):
@@ -46,6 +58,16 @@ class ErrorQueryModel(DataBaseModel):
            return ErrorMessage(**updated_error)
 
         return None
+
+    async def get_or_create_error(self,error:ErrorMessage):
+        result=await self.get_error_by_error_id(error.error_id)
+
+        if result is None:
+            result=await self.insert_error(error)
+            return result
+
+        return result
+
     
 
     

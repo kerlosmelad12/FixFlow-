@@ -1,1 +1,1 @@
-from .ErrorRequest import UserQueryRequest 
+from .data import UserQueryRequest, SearchQuery

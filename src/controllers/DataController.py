@@ -21,16 +21,14 @@ class DataController(BaseController):
           return False, ErrorEnums.NOT_APPROVED_SIZE.value
 
         return True, ErrorEnums.ERROR_VALIDATED.value
-    
+
+
     @classmethod
-    def generate_error_id(cls,error_title: str, cleaned_text: str):
-      slug = re.sub(r'[^a-z0-9]+', '-', error_title.lower()).strip('-')
-      slug = slug[:40]    
-  
-      short_hash = hashlib.sha256(cleaned_text.strip().lower().encode()).hexdigest()[:6]
-    
-      return f"{slug}-{short_hash}"
-    
+    def generate_error_id(cls, cleaned_text: str) -> str:
+          normalized = re.sub(r"\s+", " ", cleaned_text.strip().lower())
+
+          return hashlib.sha256(normalized.encode()).hexdigest()
+          
        
     
     

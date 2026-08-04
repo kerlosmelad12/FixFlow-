@@ -5,5 +5,12 @@ class ErrorEnums(Enum):
     NOT_APPROVED_SIZE="The Text size is not approved"
     ERROR_VALIDATED="your error is approved"
     ERROR_CONTANT_NOT_APPROVED="the content not approved"
+    ERROR_NOT_FOUND="this errors not found"
+    ERROR_FOUND="the errors founded "
+    CLUSTER_NOT_FOUNDED="cluster not founded"
 
     NO_EXTRAXTED_ERROR="no extracted errors"
+
+
+class ErrorSource(Enum):
+    GITHUB="github"
