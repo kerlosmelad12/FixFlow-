@@ -2,6 +2,7 @@ from fastapi import APIRouter,Depends,status,Request
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from helper import get_settings
+from models.Enums.JobProcessingEnums import JobProcessingEnums
 from controllers.DataController import DataController
 from .schema.data import UserQueryRequest,SearchQuery
 from models.DB_Schema.ProcessingJob import ProcessingJob
@@ -89,21 +90,21 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
     )
 
 
-
-    inserted_error = await error_model.get_or_create_error(error=error_message)
+    inserted_error= await error_model.get_or_create_error(error=error_message)
     _=await cluster_model.get_or_create_cluster(cluster=cluster,error_id=str(inserted_error.id))
 
 
     job = ProcessingJob(
         error_message_id=inserted_error.id,
         error=query,
+        status=JobProcessingEnums.PENDING.value
     )
     job = await job_model.create_job(job)
 
     return JSONResponse(
         content={
             "result": signal,
-            "error": extracted_data,
+            "error": error_message.error_id,
             "job_id": str(job.id),
         }
     )
@@ -168,7 +169,6 @@ async def get_error_data(user_request: SearchQuery, res: Request):
             }
         )
 
-    # Nothing provided
     return JSONResponse(
         status_code=400,
         content={

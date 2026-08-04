@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routes import base_app,data_app
+from routes import base_app,data_app,nlp_app
 import uvicorn
 from motor.motor_asyncio import AsyncIOMotorClient
 from helper.config import get_settings
@@ -76,6 +76,7 @@ async def shutdown_application():
 
 app.include_router(base_app)
 app.include_router(data_app)
+app.include_router(nlp_app)
 
 if __name__ == "__main__":
     uvicorn.run("main:app", port=5000, reload=True)
