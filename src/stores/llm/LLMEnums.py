@@ -1,8 +1,9 @@
 from enum import Enum
 import torch
 class LLMbackend(Enum):
-    GENERATION_BACKEND="Qween"
     EMBEDDING_BACKEND="MiniLM"
+    GENERATION_BACKEND = "Groq"
+
 
 class Devicemap(Enum):
     CUDA="cuda"

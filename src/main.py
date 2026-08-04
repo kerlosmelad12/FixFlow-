@@ -65,6 +65,7 @@ async def startup_application():
     app.db_client = app.mongo_conn[settings.DB_NAME]
 
 
+
 @app.on_event("shutdown")
 async def shutdown_application():
        app.mongo_conn.close()

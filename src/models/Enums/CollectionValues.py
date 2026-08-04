@@ -5,3 +5,4 @@ class CollectionValues(Enum):
     QUESTIONS="questions"
     ERRORTAG="tags"
     JOBS="jobs"
+    CLUSTERS="clusters"

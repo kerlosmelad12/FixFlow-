@@ -20,11 +20,6 @@ class DataController(BaseController):
         if error.strip() == "":
           return False, ErrorEnums.NOT_APPROVED_SIZE.value
 
-        keywords = self.app_settings.get_error_keywords()
-        lowered = error.lower()
-        if not any(keyword.lower() in lowered for keyword in keywords):
-          return False, ErrorEnums.ERROR_CONTANT_NOT_APPROVED.value
-
         return True, ErrorEnums.ERROR_VALIDATED.value
     
     @classmethod

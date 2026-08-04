@@ -1,12 +1,10 @@
 from .BaseController import BaseController
 from routes.schema.ErrorRequest import UserQueryRequest
-from .NlpController import LLMService
-from .DataController import DataController
 from models.DB_Schema.ProcessingJob import ProcessingJob
 from models.Enums.JobProcessingEnums import JobProcessingEnums
 import re
 import html
-from prompts.extraction_prompts import build_extraction_prompt
+from prompts.extraction_prompts import build_user_prompt,build_system_prompt
 import json
 from .extraction_parsing import parse_extraction_output
 
