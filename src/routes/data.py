@@ -36,9 +36,9 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
 
 
     data_controller = DataController()
-    error_model = ErrorQueryModel(res.app.db_client)
-    job_model = JobProcessingModel(res.app.db_client)
-    cluster_model = ClusterModel(res.app.db_client)
+    error_model = await ErrorQueryModel.create_instance(res.app.db_client)
+    job_model = await JobProcessingModel.create_instance(res.app.db_client)
+    cluster_model = await ClusterModel.create_instance(res.app.db_client)
 
     query = error.query
     is_valid, signal = data_controller.validate_error(query)
@@ -115,8 +115,8 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
 @data_app.post("/search/")
 async def get_error_data(user_request: SearchQuery, res: Request):
 
-    error_model = ErrorQueryModel(res.app.db_client)
-    cluster_model = ClusterModel(res.app.db_client)
+    error_model = await ErrorQueryModel.create_instance(res.app.db_client)
+    cluster_model = await ClusterModel.create_instance(res.app.db_client)
 
     # Search by cluster
     if user_request.cluster_name:
