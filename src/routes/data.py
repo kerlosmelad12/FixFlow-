@@ -93,7 +93,7 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
 
     inserted_error= await error_model.get_or_create_error(error=error_message)
     cluster=await cluster_model.get_or_create_cluster(cluster=cluster,error_id=str(inserted_error.id))
-
+    inserted_error.cluster_id=str(cluster.id)
 
     job = ProcessingJob(
         error_message_id=inserted_error.id,

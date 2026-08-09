@@ -13,4 +13,4 @@ class ErrorEnums(Enum):
 
 
 class ErrorSource(Enum):
-    GITHUB="github"
+    STACK_OVERFLOW="stack_overflow"
