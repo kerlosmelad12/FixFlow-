@@ -9,6 +9,23 @@ class ErrorQueryModel(DataBaseModel):
         super().__init__(db_client=db_client)
         self.ErrorCollection=self.db_client[CollectionValues.QUESTIONS.value]
 
+    async def init_collection(self):
+        all_collections=await self.db_client.list_collection_names()
+        if CollectionValues.QUESTIONS.value not in all_collections:
+          self.ErrorCollection=self.db_client[CollectionValues.QUESTIONS.value] 
+          indexes=ErrorMessage.get_indexes()
+          for index in indexes:
+                await self.ErrorCollection.create_index(
+                    index["key"],
+                    name=index["name"],
+                    unique=index.get("unique", False)
+                )
+    @classmethod
+    async def create_instance(cls,db_client:object):
+        instance=cls(db_client)
+        await instance.init_collection()
+        return instance
+
 
     async def get_error_by_error_id(self,error_id:str):
         result = await self.ErrorCollection.find_one(
