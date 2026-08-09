@@ -8,7 +8,7 @@ from typing import Optional
 class LLMInterface(ABC):
 
     @abstractmethod
-    def generate(self, promot :str ,messages: list[dict], max_new_tokens: int = 512,temperature:float=0.4) -> str:
+    def generate(self,promot: str,messages: list=None | dict,max_new_tokens: int = None, temperature: float = None) -> str:
         pass
 
     @abstractmethod

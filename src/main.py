@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routes import base_app,data_app
+from routes import base_app,data_app,nlp_app
 import uvicorn
 from motor.motor_asyncio import AsyncIOMotorClient
 from helper.config import get_settings
@@ -10,6 +10,7 @@ from stores.vectordb.VectordbFactory import VectordbFactory
 from stores.llm.LLMEnums import LLMbackend
 from stores.classifiers.ClassificationEnums import ClassificationEnums
 from stores.vectordb.VectordbEnums import VectordbEnums
+from templetes.Templete_parser import Templete_parser
 
 
 
@@ -64,6 +65,8 @@ async def startup_application():
     app.mongo_conn = AsyncIOMotorClient(settings.MONGODB_URI)
     app.db_client = app.mongo_conn[settings.DB_NAME]
 
+    app.templete_parser=Templete_parser(lang=settings.PRIMARY_LANGUAGE,default_lang=settings.DEFAULT_LANGUAGE)
+
 
 
 @app.on_event("shutdown")
@@ -76,6 +79,7 @@ async def shutdown_application():
 
 app.include_router(base_app)
 app.include_router(data_app)
+app.include_router(nlp_app)
 
 if __name__ == "__main__":
     uvicorn.run("main:app", port=5000, reload=True)

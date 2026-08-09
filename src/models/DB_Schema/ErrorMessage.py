@@ -12,13 +12,24 @@ class ErrorMessage(BaseModel):
     error_type: Optional[str] = None
     error_text: str = Field(..., min_length=1)
     error_signature: Optional[str] = None
-     
+
+    cluster_id: Optional[ObjectId] = None
     raw_extracted_tags: Optional[List[str]] = [] # All tags
-       
     source: Optional[str] = ErrorSource.GITHUB.value             
     created_at: datetime = Field(default_factory=datetime.utcnow)
     answer_ids: Optional[List[ObjectId]] = []
 
+    @classmethod
+    def get_indexes(cls):
+        return [
+            {
+                "key":[
+                    ("error_id",1)
+                ],
+                "name":"error_id_index_1",
+                "unique":True
+            }
+        ]
 
 
     @validator("error_id")

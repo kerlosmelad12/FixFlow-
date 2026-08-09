@@ -1,17 +1,17 @@
 from models.DB_Schema.Cluster import Cluster
-from prompts.extraction_prompts import build_system_prompt, build_user_prompt
 from .ProcessController import ProcessController
 from stores.llm.LLMEnums import ChatRoles
 from .extraction_parsing import parse_extraction_output
 from models.DB_Schema.ErrorMessage import ErrorMessage
 class NlpController:
     def __init__(self, embedding_client: object,generation_client: object,
-                 vector_store_client: object,classifier_client: object):
+                 vector_store_client: object,classifier_client: object,templete_client: object):
         super().__init__()
         self.embedding_client = embedding_client
         self.generation_client = generation_client
         self.vector_store_client = vector_store_client
         self.classifier_client = classifier_client
+        self.templete_parser = templete_client
         self.process_controller = ProcessController()
         
 
@@ -29,11 +29,21 @@ class NlpController:
     def extract_error_details(self, text: str):
 
         cleaned_text = self.process_controller.clean_text(text)
-        system_prompt = build_system_prompt()
-        user_prompt = build_user_prompt(cleaned_text)
+        extraction_system_prompt = self.templete_parser.get("Feature_extraction", "EXTRACTION_SYSTEM_PROMPT")
+        extraction_instructions = self.templete_parser.get("Feature_extraction", "EXTRACTION_INSTRUCTIONS_TEMPLATE")
+        examples = self.templete_parser.get("Feature_extraction", "EXAMPLES_TEMPLATE")
 
-        messages = self.generation_client.construct_prompt(ChatRoles.USER.value, user_prompt)
-        llm_result = self.generation_client.generate(promot=system_prompt, messages=messages)
+        system_prompt = "\n\n".join([
+            str(extraction_system_prompt),
+            str(extraction_instructions),
+            str(examples),
+        ])
+
+        user_prompt = self.templete_parser.get("Feature_extraction", "USER_PROMPT_TEMPLATE", {"cleaned_text": cleaned_text})
+
+        system_prompt=self.generation_client.construct_prompt(ChatRoles.SYSTEM.value, system_prompt)
+
+        llm_result = self.generation_client.generate(promot=user_prompt, messages=[system_prompt])
 
         if not llm_result:
             return {"success": False, "error": None, "data": None, "cleaned_text": cleaned_text}
