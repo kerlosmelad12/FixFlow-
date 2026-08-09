@@ -9,7 +9,7 @@ class GroqProvider(LLMInterface):
     def __init__(self, api_key: str, model_name: str,
                  default_TEMPERATURE: float = 0.2,
                  MAX_OUTPUT_TOKENS: int = 2048,
-                 INPUT_MAX_CHRACTERS: int = 2500):
+                 INPUT_MAX_CHRACTERS: int = 100000):
 
         self.client = Groq(api_key=api_key)
         self.model_name = model_name
@@ -31,7 +31,7 @@ class GroqProvider(LLMInterface):
 
         if promot:
             messages = [
-                self.construct_prompt(ChatRoles.SYSTEM.value, promot),
+                self.construct_prompt(ChatRoles.USER.value, promot),
                 *messages
             ]
 

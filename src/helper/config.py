@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     DATABASE_FOLDER:str
     VECTOR_STORE_BACKEND:str
 
+    # Language Configuration
+    DEFAULT_LANGUAGE:str
+    PRIMARY_LANGUAGE:str
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

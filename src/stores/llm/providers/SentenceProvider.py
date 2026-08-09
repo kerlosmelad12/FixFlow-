@@ -26,7 +26,7 @@ class SentenceProvider(LLMInterface):
 
     
 
-    def generate (self, promot :str ,messages: list[dict], max_new_tokens: int = 512,temperature:float=0.4) -> str:
+    def generate (self,promot: str,messages: list[dict] | dict,max_new_tokens: int = None, temperature: float = None) -> str:
 
         raise NotImplementedError("this function not supported in LocalEmbedding Provider")
 

@@ -30,6 +30,7 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
         vector_store_client=res.app.vectordb,
         generation_client=res.app.generation,
         embedding_client=res.app.embedding,
+        templete_client=res.app.templete_parser
     )
     print("DEBUG generation client:", res.app.generation)
 
@@ -91,7 +92,7 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
 
 
     inserted_error= await error_model.get_or_create_error(error=error_message)
-    _=await cluster_model.get_or_create_cluster(cluster=cluster,error_id=str(inserted_error.id))
+    cluster=await cluster_model.get_or_create_cluster(cluster=cluster,error_id=str(inserted_error.id))
 
 
     job = ProcessingJob(
@@ -104,8 +105,9 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
     return JSONResponse(
         content={
             "result": signal,
-            "error": error_message.error_id,
+            "error_id": error_message.error_id,
             "job_id": str(job.id),
+            "cluster_name": cluster.cluster_name,
         }
     )
 
@@ -149,7 +151,6 @@ async def get_error_data(user_request: SearchQuery, res: Request):
             }
         )
 
-    # Search by error_id
     elif user_request.error_id:
 
         error = await error_model.get_error_by_error_id(

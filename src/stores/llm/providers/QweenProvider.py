@@ -123,7 +123,7 @@ class QweenProvider(LLMInterface):
   
 
 
-    def generate(self, promot :str ,messages: list[dict], max_new_tokens: int = 512,temperature:float=0.4) -> str:
+    def generate(self,promot: str,messages: list[dict] | dict,max_new_tokens: int = None, temperature: float = None) -> str:
 
 
         if not self.tokenizer:

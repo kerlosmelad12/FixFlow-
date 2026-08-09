@@ -10,6 +10,7 @@ from stores.vectordb.VectordbFactory import VectordbFactory
 from stores.llm.LLMEnums import LLMbackend
 from stores.classifiers.ClassificationEnums import ClassificationEnums
 from stores.vectordb.VectordbEnums import VectordbEnums
+from templetes.Templete_parser import Templete_parser
 
 
 
@@ -63,6 +64,8 @@ async def startup_application():
 
     app.mongo_conn = AsyncIOMotorClient(settings.MONGODB_URI)
     app.db_client = app.mongo_conn[settings.DB_NAME]
+
+    app.templete_parser=Templete_parser(lang=settings.PRIMARY_LANGUAGE,default_lang=settings.DEFAULT_LANGUAGE)
 
 
 
