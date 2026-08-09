@@ -13,9 +13,8 @@ class ErrorMessage(BaseModel):
     error_text: str = Field(..., min_length=1)
     error_signature: Optional[str] = None
 
-    cluster_id: Optional[ObjectId] = None
     raw_extracted_tags: Optional[List[str]] = [] # All tags
-    source: Optional[str] = ErrorSource.GITHUB.value             
+    source: Optional[str] = ErrorSource.STACK_OVERFLOW.value             
     created_at: datetime = Field(default_factory=datetime.utcnow)
     answer_ids: Optional[List[ObjectId]] = []
 
