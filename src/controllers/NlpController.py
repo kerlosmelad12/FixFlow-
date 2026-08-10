@@ -82,56 +82,100 @@ class NlpController:
         parser_result["cleaned_text"] = cleaned_text
         return parser_result
 
-    def rank_similar_web_results(self, query_text: str, results: WeabscearchSearchResponse, min_similarity: float = 0.4):
-
-        #embed the data and save it to vector dbcollection  
-        if not results:
+    
+    def rank_similar_web_results(self,query_text: str, results: WeabscearchSearchResponse, min_similarity: float = 0.4):
+        if not results or not results.results:
             return []
 
+    
         query_embedding = self.embedding_client.embed(query_text)
 
         scored = []
+
+        collection_name = self.creater_collection_name()
+
         for result in results.results:
 
-            if not (result.question.score > 0 and result.question.answer_count > 0):
-                    continue
-            
-            candidate_text = result.question.title
-            candidate_embedding = self.embedding_client.embed(candidate_text)
-            score = self._cosine_similarity(query_embedding, candidate_embedding)
+            question = result.question
+            answers = result.answers
 
-            if score >= min_similarity:
+            if question.answer_count <= 0 or not answers:
+                continue
 
-                scored.append(
-                        RetriveSimiler(
-                            question=result.question  ,
-                            answers= result.answers,
-                            score=score
-                        )
-                    )
-                        
-                record_metadata={
-                        "question_id": result.question.question_id,
-                        "title": result.question.title,
-                        "url": result.question.url,
-                        "tags": result.question.tags,
-                        "score": result.question.score,
-                        "answers": [a.dict() for a in result.answers],
+            candidate_text = question.body
+
+            candidate_embedding = self.embedding_client.embed(
+                candidate_text
+            )
+
+    
+            similarity = self._cosine_similarity(
+                query_embedding,
+                candidate_embedding
+            )
+
+            if similarity < min_similarity:
+                continue
+
+
+            scored.append(
+                RetriveSimiler(
+                    question=question,
+                    answers=answers,
+                    score=similarity
+                )
+            )
+
+
+            record_metadata = {
+                "question_id": question.question_id,
+                "title": question.title,
+                "url": question.url,
+                "tags": question.tags,
+                "question_score": question.score,
+                "answer_count": question.answer_count,
+
+                "answers": [
+                    {
+                        "answer_id": answer.answer_id,
+                        "body": answer.body,
+                        "score": answer.score,
+                        "is_accepted": answer.is_accepted,
                     }
+                    for answer in answers
+                ],
+            }
+
+            self.vector_store_client.insert_one(
+                collection_name=collection_name,
+                text=candidate_text,
+                vector=candidate_embedding,
+                metadata=record_metadata,
+                record_id=question.question_id
+            )
+
+  
+        scored.sort(
+            key=lambda item: item.score,
+            reverse=True
+        )
 
 
-                self.vector_store_client.insert_one(
-                    collection_name=self.creater_collection_name(),
-                    text=candidate_text,
-                    vector=candidate_embedding,
-                    metadata=record_metadata,
-                    record_id=result.question.question_id
-                    )
-
-        scored=[score.dict() for score in scored]
+        return [
+            item.model_dump()
+            for item in scored
+        ]
 
 
-        return sorted(scored, key=lambda x: x['score'], reverse=True)
+    def answer_error_question(self,query_text:str,results: WeabscearchSearchResponse, min_similarity: float = 0.4):
+
+        similer_questions=self.rank_similar_web_results(query_text,results,min_similarity)
+
+        if not similer_questions:
+            return None
+
+      
+
 
 
     @staticmethod

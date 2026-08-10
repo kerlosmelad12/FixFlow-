@@ -29,7 +29,7 @@ class Templete_parser:
         if not os.path.exists(group_path):
             target_lang = self.default_lang
 
-        module = __import__(f"templetes.locales.{target_lang}.{group}", fromlist=[group])
+        module = __import__(f"stores.templetes.locales.{target_lang}.{group}", fromlist=[group])
 
         if module is None:
             return None

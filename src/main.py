@@ -10,7 +10,7 @@ from stores.vectordb.VectordbFactory import VectordbFactory
 from stores.llm.LLMEnums import LLMbackend
 from stores.classifiers.ClassificationEnums import ClassificationEnums
 from stores.vectordb.VectordbEnums import VectordbEnums
-from templetes.Templete_parser import Templete_parser
+from stores.templetes.Templete_parser import Templete_parser
 
 
 
