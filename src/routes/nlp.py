@@ -82,7 +82,7 @@ async def get_similar_errors(error_id: str,res: Request,user_input: SimilarError
 
 
     scored = nlp_controller.rank_similar_web_results(
-        query,
+        error.error_text,
         results,
         user_input.min_similarity
     )
@@ -129,10 +129,47 @@ async def get_similar_errors(error_id: str,res: Request,user_input: SimilarError
     return JSONResponse(
         content={
             "kind": RetriveTypeEnums.WEB_SCEARCH.value,
-            "result": [item.model_dump()
-                 for item in scored[:user_input.limit]
-            ],
+            "result":scored[:user_input.limit],
             "signal": ErrorEnums.MATCHED_ERROR_FOUND.value,
             "status": updated_job.status
         }
     )
+
+@nlp_app.post("/answer/{error_id}")
+
+async def answer_error_quetion(error_id:str,res:Request):
+    
+    error_model = await ErrorQueryModel.create_instance(
+        res.app.db_client
+    )
+
+    job_model = await JobProcessingModel.create_instance(
+        res.app.db_client
+    )
+
+    nlp_controller = NlpController(
+        classifier_client=res.app.classifier,
+        vector_store_client=res.app.vectordb,
+        generation_client=res.app.generation,
+        embedding_client=res.app.embedding,
+        templete_client=res.app.templete_parser
+    )
+
+  
+
+    error = await error_model.get_error_by_error_id(
+        error_id=error_id
+    )
+
+    if error is None:
+
+        return JSONResponse(
+            status_code=404,
+            content={
+                "result": ErrorEnums.ERROR_NOT_FOUND.value
+            }
+        )
+
+
+
+
