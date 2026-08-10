@@ -12,6 +12,7 @@ from models.JobProcessingModel import JobProcessingModel
 from models.Enums.ErrorEnums import ErrorEnums
 from controllers.NlpController import NlpController
 from models.ClusterModel import ClusterModel
+import uuid
 
 
 data_app=APIRouter(
@@ -32,7 +33,6 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
         embedding_client=res.app.embedding,
         templete_client=res.app.templete_parser
     )
-    print("DEBUG generation client:", res.app.generation)
 
 
     data_controller = DataController()
@@ -47,31 +47,36 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"result": signal},
         )
-
+    
+    extracted_error = nlp_controller.extract_error_details(query )
    
-    cluster = nlp_controller.classify_text(query)
 
-    extracted_error = nlp_controller.extract_error_details(query)
-
-    if not extracted_error or not extracted_error.get("success"):
+    if (not extracted_error or not extracted_error.get("success")):
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content={"result": ErrorEnums.NO_EXTRAXTED_ERROR.value},
+            content={
+                "result": ErrorEnums.NO_EXTRAXTED_ERROR.value
+            }
         )
 
     extracted_data = extracted_error.get("data")
+
+
     if not extracted_data:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content={"result": ErrorEnums.NO_EXTRAXTED_ERROR.value},
+            content={
+                "result": ErrorEnums.NO_EXTRAXTED_ERROR.value
+            }
         )
+
 
     extracted_tags = extracted_data.get("tags")
     error_type = extracted_data.get("error_type")
     error_title = extracted_data.get("error_title")
     error_signature = extracted_data.get("error_signature")
 
-    if not all([extracted_tags, error_type, error_title, error_signature]):
+    if not all([extracted_tags, error_type, error_title]):
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"result": ErrorEnums.NO_EXTRAXTED_ERROR.value},
@@ -88,19 +93,89 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
         error_title=error_title,
         error_text=query,
         error_signature=error_signature,
+        error_clean_text=cleaned_text
     )
 
 
-    inserted_error= await error_model.get_or_create_error(error=error_message)
+    inserted_error = await error_model.get_or_create_error(
+        error=error_message
+    )
+
+    error_message_id = str(inserted_error.id)
+
+    existing_job = await job_model.get_job(
+    error_message_id
+)
+
+    if existing_job is not None:
+
+    
+
+        if existing_job.status == JobProcessingEnums.SEARCHED.value:
+
+            return JSONResponse(
+                content={
+                    "result": ErrorEnums.ERROR_FOUND.value,
+                    "error_id": error_message.error_id,
+                    "job_id": str(existing_job.id),
+                    "status": existing_job.status,
+                    "cached": True,
+                    "data": [item.model_dump() if hasattr(item, "model_dump") else item
+                for item in existing_job.cached_results]
+                }
+            )
+
+   
+
+        if existing_job.status in [
+            JobProcessingEnums.PENDING.value,
+            JobProcessingEnums.EXTRACTED.value
+        ]:
+
+            return JSONResponse(
+                content={
+                    "result": signal,
+                    "error_id": error_message.error_id,
+                    "job_id": str(existing_job.id),
+                    "status": existing_job.status,
+                    "cached": False
+                }
+            )
+
+   
+
+        if existing_job.status == JobProcessingEnums.FAILED.value:
+
+            updated_job = await job_model.update_status(
+                job_id=str(existing_job.id),
+                status=JobProcessingEnums.PENDING.value
+            )
+
+            return JSONResponse(
+                content={
+                    "result": signal,
+                    "error_id": error_message.error_id,
+                    "job_id": str(updated_job.id),
+                    "status": updated_job.status,
+                    "cached": False,
+                    "retry": True
+                }
+            )
+    cluster = nlp_controller.classify_text(
+        query
+    )
     cluster=await cluster_model.get_or_create_cluster(cluster=cluster,error_id=str(inserted_error.id))
-    inserted_error.cluster_id=str(cluster.id)
+
 
     job = ProcessingJob(
+        job_id=str(uuid.uuid4()),
         error_message_id=inserted_error.id,
         error=query,
         status=JobProcessingEnums.PENDING.value
     )
     job = await job_model.create_job(job)
+
+
 
     return JSONResponse(
         content={
@@ -108,71 +183,108 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
             "error_id": error_message.error_id,
             "job_id": str(job.id),
             "cluster_name": cluster.cluster_name,
+            "status": job.status,
+            "cached": False
         }
     )
 
+@data_app.get("/search/{error_id}")
+async def get_error_data(error_id: str, res: Request):
 
-@data_app.post("/search/")
-async def get_error_data(user_request: SearchQuery, res: Request):
+    error_model = await ErrorQueryModel.create_instance(
+        res.app.db_client
+    )
 
-    error_model = await ErrorQueryModel.create_instance(res.app.db_client)
-    cluster_model = await ClusterModel.create_instance(res.app.db_client)
+    job_model = await JobProcessingModel.create_instance(
+        res.app.db_client
+    )
 
-    # Search by cluster
-    if user_request.cluster_name:
 
-        cluster = await cluster_model.get_data_by_cluster(
-            cluster_name=user_request.cluster_name,
+    error = await error_model.get_error_by_error_id(
+        error_id
+    )
+
+    if error is None:
+
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={
+                "result": ErrorEnums.ERROR_NOT_FOUND.value,
+                "error_id": error_id
+            }
         )
 
-        if cluster is None:
-            return JSONResponse(
-                status_code=404,
-                content={"result": ErrorEnums.CLUSTER_NOT_FOUNDED.value},
-            )
 
-        results = []
+    job = await job_model.get_job_by_error_id(
+        str(error.id)
+    )
 
-        error_ids=[str(error_id) for error_id in cluster.error_ids]
 
-        for error_id in error_ids[:user_request.limit] :
-            error = await error_model.get_error_by_id(str(error_id))
-            if error:
-               error = error.copy()
+    if job is None:
 
-               error["_id"] = str(error["_id"])
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={
+                "result": "No processing job found for this error.",
+                "error_id": error_id
+            }
+        )
 
-               results.append(jsonable_encoder(error))
+
+    if job.status in [
+        JobProcessingEnums.PENDING.value,
+        JobProcessingEnums.EXTRACTED.value
+    ]:
+
+        return JSONResponse(
+            content={
+                "result": "Error is still being processed.",
+                "error_id": error_id,
+                "job_id": str(job.id),
+                "status": job.status,
+                "cached": False,
+                "data": None
+            }
+        )
+
+
+
+    if job.status == JobProcessingEnums.FAILED.value:
+
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "result": "Error processing failed.",
+                "error_id": error_id,
+                "job_id": str(job.id),
+                "status": job.status,
+                "cached": False,
+                "data": None
+            }
+        )
+
+
+    if job.status == JobProcessingEnums.SEARCHED.value:
 
         return JSONResponse(
             content={
                 "result": ErrorEnums.ERROR_FOUND.value,
-                "errors": results
+                "error_id": error_id,
+                "job_id": str(job.id),
+                "status": job.status,
+                "cached": True,
+                "data": job.cached_results
             }
         )
 
-    elif user_request.error_id:
-
-        error = await error_model.get_error_by_error_id(
-            user_request.error_id
-        )
-
-        if error is None:
-            return JSONResponse(
-                status_code=404,
-                content={"result": ErrorEnums.ERROR_NOT_FOUND.value},
-            )
-
-        return JSONResponse(
-            content={
-                "result": ErrorEnums.ERROR_FOUND.value,
-                "error": error.model_dump()
-            }
-        )
+  
 
     return JSONResponse(
-        status_code=400,
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
-            "result": "Please provide either cluster_name or error_id."
+            "result": "Unknown job status.",
+            "error_id": error_id,
+            "job_id": str(job.id),
+            "status": job.status
         }
     )

@@ -10,7 +10,9 @@ class ErrorEnums(Enum):
     CLUSTER_NOT_FOUNDED="cluster not founded"
 
     NO_EXTRAXTED_ERROR="no extracted errors"
+    NO_MATCHED_ERROR="no matched error found"
+    MATCHED_ERROR_FOUND="Matched error found"
 
 
 class ErrorSource(Enum):
-    STACK_OVERFLOW="stack_overflow"
+    STACK_OVERFLOW="stackoverflow"

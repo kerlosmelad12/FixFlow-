@@ -12,6 +12,7 @@ class ErrorMessage(BaseModel):
     error_type: Optional[str] = None
     error_text: str = Field(..., min_length=1)
     error_signature: Optional[str] = None
+    error_clean_text: str = Field(..., min_length=1)
 
     raw_extracted_tags: Optional[List[str]] = [] # All tags
     source: Optional[str] = ErrorSource.STACK_OVERFLOW.value             

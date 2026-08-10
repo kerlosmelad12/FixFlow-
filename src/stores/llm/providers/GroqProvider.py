@@ -9,7 +9,7 @@ class GroqProvider(LLMInterface):
     def __init__(self, api_key: str, model_name: str,
                  default_TEMPERATURE: float = 0.2,
                  MAX_OUTPUT_TOKENS: int = 2048,
-                 INPUT_MAX_CHRACTERS: int = 100000):
+                 INPUT_MAX_CHRACTERS: int = 100000000):
 
         self.client = Groq(api_key=api_key)
         self.model_name = model_name
