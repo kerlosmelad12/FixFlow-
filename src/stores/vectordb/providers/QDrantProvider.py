@@ -78,7 +78,7 @@ class QDrantProvider(VectordbInterface):
     def insert_one(self, collection_name: str, text: str, vector: list,
                              metadata: dict = None, 
                             record_id: str= None):
-        if not self.is_collection_existed(collection_name):
+        if not self.is_collection_exist(collection_name):
             self.logger.error(f"Can not insert new record to non-existed collection: {collection_name}")
             return False
           
@@ -87,7 +87,7 @@ class QDrantProvider(VectordbInterface):
                 collection_name=collection_name,
                 records=[
                     models.Record(
-                        id=[record_id],
+                        id=record_id,
                         vector=vector,
                         payload={
                             "text": text, "metadata": metadata

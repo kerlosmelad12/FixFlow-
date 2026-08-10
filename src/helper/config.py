@@ -64,6 +64,10 @@ class Settings(BaseSettings):
     DEFAULT_LANGUAGE:str
     PRIMARY_LANGUAGE:str
 
+    ##search Configuration
+    STACK_OVERFLOW_SCEARCH_BACKEND:str
+    STACK_OVERFLOW_BASE_URL:str
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
