@@ -121,7 +121,7 @@ async def get_similar_errors(error_id: str,res: Request,user_input: SimilarError
 
         return JSONResponse(
 
-            status=status.HTTP_404_NOT_FOUND,
+            statusstatus_code=status.HTTP_404_NOT_FOUND,
 
             content={
                 "result": "Failed to update job status."
@@ -203,7 +203,7 @@ async def answer_error_quetion( error_id: str, res: Request,user_input: SimilarE
 
         await job_model.save_cached_results(
             error_message_id=error_message_id,
-            results=results
+            results=results.model_dump()["results"]
         )
 
     # 6. Create NLP controller
@@ -215,50 +215,20 @@ async def answer_error_quetion( error_id: str, res: Request,user_input: SimilarE
         templete_client=res.app.templete_parser
     )
 
-    # 7. Generate answer
-    try:
-
-        llm_result = nlp_controller.get_formatted_answer(
+  
+    llm_result = nlp_controller.get_formatted_answer(
             error.error_text,
             results,
             min_similarity=user_input.min_similarity
         )
 
-    # Groq token/rate limit
-    except RateLimitError:
-
-        return JSONResponse(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            content={
-                "result": "LLM service limit reached.",
-                "message": (
-                    "Your data and error information were processed successfully. "
-                    "The request could not be completed because the LLM provider "
-                    "has reached its usage limit. "
-                    "This is not a problem with your data. "
-                    "Please try again later."
-                ),
-                "source": "llm"
-            }
-        )
-
-    # Any other unexpected LLM error
-    except Exception as e:
-
-        return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={
-                "result": ErrorEnums.THERE_NO_ANSWER.value,
-                "error": str(e),
-                "source": "llm"
-            }
-        )
+    
 
     # 8. Handle unsuccessful LLM result
     if not llm_result.get("success"):
 
         return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_404_NOT_FOUND,
             content={
                 "result": ErrorEnums.THERE_NO_ANSWER.value,
                 "error": llm_result.get("error"),
