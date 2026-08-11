@@ -62,6 +62,7 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
     extracted_data = extracted_error.get("data")
 
 
+
     if not extracted_data:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,

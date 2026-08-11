@@ -92,17 +92,8 @@ class NlpController(BaseController):
         parser_result["cleaned_text"] = cleaned_text
         return parser_result
 
-    def rank_similar_web_results(self, query_text: str, results: WeabscearchSearchResponse, min_similarity: float = None):
-        """
-        Ranks retrieved web results by a blend of semantic similarity, answer
-        count, question score, and presence of an accepted answer.
+    def rank_similar_web_results(self,query_text: str,results: WeabscearchSearchResponse,min_similarity: float = None):
 
-        Fix: previously any question with MORE answers than
-        MAX_ANSWERS_PER_DOCUMENT was skipped entirely (rejecting good,
-        well-answered questions). Now we keep the question and simply cap
-        how many of its answers we carry forward, preferring accepted /
-        higher-scored answers.
-        """
         if min_similarity is None:
             min_similarity = self.default_min_similarity
 
@@ -112,7 +103,9 @@ class NlpController(BaseController):
         try:
             query_embedding = self.embedding_client.embed(query_text)
         except Exception:
-            logger.exception("rank_similar_web_results: failed to embed query_text")
+            logger.exception(
+                "rank_similar_web_results: failed to embed query_text"
+            )
             return []
 
         scored = []
@@ -120,6 +113,7 @@ class NlpController(BaseController):
         collection_name = self.creater_collection_name()
 
         for result in results.results:
+
             question = result.question
             answers = result.answers
 
@@ -129,28 +123,48 @@ class NlpController(BaseController):
             if question.question_id in seen_question_ids:
                 continue
 
-            # Cap answers per question instead of discarding the whole question.
             top_answers = sorted(
                 answers,
                 key=lambda a: (a.is_accepted, a.score),
                 reverse=True
-            )[: self.app_settings.MAX_ANSWERS_PER_DOCUMENT]
+            )[:self.app_settings.MAX_ANSWERS_PER_DOCUMENT]
 
             candidate_text = question.body
 
             try:
-                candidate_embedding = self.embedding_client.embed(candidate_text)
+                candidate_embedding = self.embedding_client.embed(
+                    candidate_text
+                )
             except Exception:
-                logger.exception("rank_similar_web_results: failed to embed candidate %s", question.question_id)
+                logger.exception(
+                    "rank_similar_web_results: failed to embed candidate %s",
+                    question.question_id
+                )
                 continue
 
-            similarity = self._cosine_similarity(query_embedding, candidate_embedding)
+            similarity = self._cosine_similarity(
+                query_embedding,
+                candidate_embedding
+            )
+
             if similarity is None or similarity < min_similarity:
                 continue
 
-            answer_count_score = min(question.answer_count / 10.0, 1.0)
-            question_score_score = min(max(question.score, 0) / 20.0, 1.0)
-            accepted_answer_score = 1.0 if any(a.is_accepted for a in top_answers) else 0.0
+            answer_count_score = min(
+                question.answer_count / 10.0,
+                1.0
+            )
+
+            question_score_score = min(
+                max(question.score, 0) / 20.0,
+                1.0
+            )
+
+            accepted_answer_score = (
+                1.0
+                if any(a.is_accepted for a in top_answers)
+                else 0.0
+            )
 
             final_score = (
                 self.similarity_weight * similarity
@@ -201,14 +215,26 @@ class NlpController(BaseController):
                     record_id=question.question_id
                 )
             except Exception:
-                logger.exception("rank_similar_web_results: failed to cache question %s", question.question_id)
+                logger.exception(
+                    "rank_similar_web_results: failed to cache question %s",
+                    question.question_id
+                )
 
-        scored.sort(key=lambda item: item.score, reverse=True)
+        scored.sort(
+            key=lambda item: item.score,
+            reverse=True
+        )
 
         return [item.model_dump() for item in scored]
 
+
+    
     def answer_error_question(self, query_text: str, results: WeabscearchSearchResponse, min_similarity: float = None):
-        similer_questions = self.rank_similar_web_results(query_text, results, min_similarity)
+        similer_questions = self.rank_similar_web_results(
+            query_text,
+            results,
+            min_similarity
+        )
 
         if not similer_questions:
             return None, None, None, []
@@ -217,7 +243,7 @@ class NlpController(BaseController):
             similer_questions,
             key=lambda x: x["score"],
             reverse=True
-        )[: self.app_settings.MAX_DOCUMENTS]
+        )[:self.app_settings.MAX_DOCUMENTS]
 
         retrived_documents = []
 
@@ -269,6 +295,8 @@ class NlpController(BaseController):
 
         # Fix: validate the model actually returned parseable JSON matching
         # the contract, instead of trusting the raw string blindly.
+
+
         parsed_response, parse_error = self._safe_parse_llm_json(llm_response)
         if parse_error:
             logger.warning("answer_error_question: LLM response failed JSON validation: %s", parse_error)
@@ -276,16 +304,37 @@ class NlpController(BaseController):
         return llm_response, system_prompt, user_prompt, retrived_documents
 
     def get_formatted_answer(self, query_text: str, results: WeabscearchSearchResponse, min_similarity: float = None):
-        """
-        Runs answer_error_question, then extracts the LLM's JSON fields into
-        a plain dict the caller can render however it wants (UI, API
-        response, etc). No text/markdown building here - just parsing +
-        resolving source links. Also carries system_prompt/user_prompt so
-        callers never need to call answer_error_question a second time.
-        """
+   
         llm_response, system_prompt, user_prompt, retrived_documents = self.answer_error_question(
             query_text, results, min_similarity
         )
+        try:
+            llm_response = self.generation_client.generate(
+                promot=user_prompt,
+                messages=[system_prompt]
+            )
+
+        except RateLimitError as e:
+            logger.warning(
+                "LLM rate limit reached. The user's data is valid."
+            )
+
+            return {
+                "success": False,
+                "error_type": "LLM_RATE_LIMIT",
+                "error": "LLM service usage limit reached."
+            }
+
+        except Exception as e:
+            logger.exception(
+                "answer_error_question: generation_client.generate failed"
+            )
+
+            return {
+                "success": False,
+                "error_type": "LLM_GENERATION_ERROR",
+                "error": str(e)
+            }
 
         if llm_response is None:
             return {
