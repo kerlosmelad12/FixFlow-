@@ -17,6 +17,7 @@ class GroqProvider(LLMInterface):
         self.max_output_tokens = MAX_OUTPUT_TOKENS
         self.input_max_chracters = INPUT_MAX_CHRACTERS
         self.logger = logging.getLogger(__name__)
+        self.enums=ChatRoles
 
     def set_generation_model(self, model_id: str):
         self.model_name = model_id
@@ -50,3 +51,6 @@ class GroqProvider(LLMInterface):
 
     def construct_prompt(self, role: str, message: str):
         return {'role': role, 'content': message}
+
+    def process_text(self, text: str):
+             return text[0:self.input_max_chracters].strip()

@@ -68,6 +68,11 @@ class Settings(BaseSettings):
     STACK_OVERFLOW_SCEARCH_BACKEND:str
     STACK_OVERFLOW_BASE_URL:str
 
+    MAX_ANSWER_CHARS:int
+    MAX_QUESTION_CHARS:int
+    MAX_ANSWERS_PER_DOCUMENT:int
+    MAX_DOCUMENTS:int
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

@@ -13,6 +13,11 @@ class ErrorEnums(Enum):
     NO_MATCHED_ERROR="no matched error found"
     MATCHED_ERROR_FOUND="Matched error found"
 
+    THERE_NO_ANSWER="no llm answer"
+    LLM_ANSWER_FOUND="llm answer response approved"
+
+
+
 
 class ErrorSource(Enum):
     STACK_OVERFLOW="stackoverflow"

@@ -31,6 +31,7 @@ class QweenProvider(LLMInterface):
             self.logger = logging.getLogger(__name__)
             self.torch_dtype = TorchDType[TORCH_DTYPE.upper()].value
             self.input_max_chracters = INPUT_MAX_CHRACTERS
+            self.enums=ChatRoles
 
             quant_config = None
 
@@ -112,6 +113,9 @@ class QweenProvider(LLMInterface):
             )
 
         self.load_or_download_model(quant_config)
+
+    def process_text(self, text: str):
+         return text[0:self.input_max_chracters].strip()
 
 
 

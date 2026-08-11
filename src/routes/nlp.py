@@ -1,4 +1,4 @@
-from fastapi import APIRouter,Depends,status,Request
+from fastapi import APIRouter,status,Request
 from fastapi.responses import JSONResponse
 from .schema.nlp import SimilarErrorsRequest
 from models.ErrorQueryModel import ErrorQueryModel
@@ -43,7 +43,7 @@ async def get_similar_errors(error_id: str,res: Request,user_input: SimilarError
     if error is None:
 
         return JSONResponse(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             content={
                 "result": ErrorEnums.ERROR_NOT_FOUND.value
             }
@@ -103,7 +103,7 @@ async def get_similar_errors(error_id: str,res: Request,user_input: SimilarError
     if cached_job is None:
 
         return JSONResponse(
-            status_code=500,
+            status_code=status.HTTP_404_NOT_FOUND,
             content={
                 "result": "Failed to save cached results."
             }
@@ -118,7 +118,9 @@ async def get_similar_errors(error_id: str,res: Request,user_input: SimilarError
     if updated_job is None:
 
         return JSONResponse(
-            status_code=500,
+
+            status=status.HTTP_404_NOT_FOUND,
+
             content={
                 "result": "Failed to update job status."
             }
@@ -136,9 +138,8 @@ async def get_similar_errors(error_id: str,res: Request,user_input: SimilarError
     )
 
 @nlp_app.post("/answer/{error_id}")
+async def answer_error_quetion(error_id: str, res: Request, user_input: SimilarErrorsRequest):
 
-async def answer_error_quetion(error_id:str,res:Request):
-    
     error_model = await ErrorQueryModel.create_instance(
         res.app.db_client
     )
@@ -155,21 +156,50 @@ async def answer_error_quetion(error_id:str,res:Request):
         templete_client=res.app.templete_parser
     )
 
-  
-
     error = await error_model.get_error_by_error_id(
         error_id=error_id
     )
 
     if error is None:
-
         return JSONResponse(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             content={
                 "result": ErrorEnums.ERROR_NOT_FOUND.value
             }
         )
 
+    web_search_controller = WebscearchController(
+        scearch_backend=error.source
+    )
 
+    query = error.error_signature
 
+    results = web_search_controller.search(
+        query=query,
+        pagesize=user_input.pagesize
+    )
 
+    llm_result = nlp_controller.get_formatted_answer(
+        error.error_text, results, min_similarity=user_input.min_similarity
+    )
+
+   
+    if not llm_result.get("success"):
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={
+                "result": ErrorEnums.THERE_NO_ANSWER.value,
+                "error": llm_result.get("error"),
+            }
+        )
+
+    await job_model.update_status(error_id, status=JobProcessingEnums.ANSWERD.value)
+
+    return JSONResponse(
+        content={
+            "result": ErrorEnums.LLM_ANSWER_FOUND.value,
+            "llm_response": llm_result,
+            "system_prompt": llm_result.get("system_prompt"),
+            "user_prompt": llm_result.get("user_prompt"),
+        }
+    )
