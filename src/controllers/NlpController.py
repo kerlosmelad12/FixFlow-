@@ -13,6 +13,7 @@ from models.DB_Schema.Weabscearch import WeabscearchQuestion
 from models.DB_Schema.ProcessingJob import ProcessingJob
 from models.Enums.JobProcessingEnums import JobProcessingEnums
 from .BaseController import BaseController
+from groq import RateLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +93,7 @@ class NlpController(BaseController):
         parser_result["cleaned_text"] = cleaned_text
         return parser_result
 
-    def rank_similar_web_results(self,query_text: str,results: WeabscearchSearchResponse,min_similarity: float = None):
+    def rank_similar_web_results(self, query_text: str, results: WeabscearchSearchResponse, min_similarity: float = None):
 
         if min_similarity is None:
             min_similarity = self.default_min_similarity
@@ -227,9 +228,8 @@ class NlpController(BaseController):
 
         return [item.model_dump() for item in scored]
 
-
-    
     def answer_error_question(self, query_text: str, results: WeabscearchSearchResponse, min_similarity: float = None):
+  
         similer_questions = self.rank_similar_web_results(
             query_text,
             results,
@@ -237,7 +237,7 @@ class NlpController(BaseController):
         )
 
         if not similer_questions:
-            return None, None, None, []
+            return None, None, None, [], None
 
         similer_questions = sorted(
             similer_questions,
@@ -253,8 +253,7 @@ class NlpController(BaseController):
             similirity_score = result['score']
 
             document = {
-                # Fix: question_id is now included explicitly so the LLM never
-                # has to guess/parse it out of the URL for used_documents.
+            
                 "question_id": question['question_id'],
                 "title": question['title'],
                 'body': question['body'][:self.app_settings.MAX_QUESTION_CHARS],
@@ -287,59 +286,54 @@ class NlpController(BaseController):
             "\n\n".join([system, examples])
         )
 
+    
         try:
-            llm_response = self.generation_client.generate(promot=user_prompt, messages=[system_prompt])
+            llm_response = self.generation_client.generate(
+                promot=user_prompt,
+                messages=[system_prompt],
+                json_mode=True,
+            )
+        except RateLimitError:
+            logger.warning("answer_error_question: LLM rate limit reached.")
+            return None, system_prompt, user_prompt, retrived_documents, "LLM_RATE_LIMIT"
         except Exception:
             logger.exception("answer_error_question: generation_client.generate failed")
-            return None, system_prompt, user_prompt, retrived_documents
-
-        # Fix: validate the model actually returned parseable JSON matching
-        # the contract, instead of trusting the raw string blindly.
-
+            return None, system_prompt, user_prompt, retrived_documents, "LLM_GENERATION_ERROR"
 
         parsed_response, parse_error = self._safe_parse_llm_json(llm_response)
         if parse_error:
             logger.warning("answer_error_question: LLM response failed JSON validation: %s", parse_error)
+            logger.warning("answer_error_question: raw LLM response repr=%r", llm_response)
 
-        return llm_response, system_prompt, user_prompt, retrived_documents
+        return llm_response, system_prompt, user_prompt, retrived_documents, None
 
     def get_formatted_answer(self, query_text: str, results: WeabscearchSearchResponse, min_similarity: float = None):
-   
-        llm_response, system_prompt, user_prompt, retrived_documents = self.answer_error_question(
+
+        llm_response, system_prompt, user_prompt, retrived_documents, error_type = self.answer_error_question(
             query_text, results, min_similarity
         )
-        try:
-            llm_response = self.generation_client.generate(
-                promot=user_prompt,
-                messages=[system_prompt]
-            )
 
-        except RateLimitError as e:
-            logger.warning(
-                "LLM rate limit reached. The user's data is valid."
-            )
+        if not retrived_documents:
+            return {
+                "success": False,
+                "error_type": "NO_SIMILAR_RESULTS",
+                "error": "No similar questions found to answer from.",
+            }
 
+        if error_type == "LLM_RATE_LIMIT":
             return {
                 "success": False,
                 "error_type": "LLM_RATE_LIMIT",
-                "error": "LLM service usage limit reached."
+                "error": "LLM service usage limit reached.",
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
             }
 
-        except Exception as e:
-            logger.exception(
-                "answer_error_question: generation_client.generate failed"
-            )
-
+        if error_type == "LLM_GENERATION_ERROR" or llm_response is None:
             return {
                 "success": False,
-                "error_type": "LLM_GENERATION_ERROR",
-                "error": str(e)
-            }
-
-        if llm_response is None:
-            return {
-                "success": False,
-                "error": "no_results_or_generation_failed",
+                "error_type": error_type or "GENERATION_FAILED",
+                "error": "LLM generation failed.",
                 "system_prompt": system_prompt,
                 "user_prompt": user_prompt,
             }
@@ -348,13 +342,12 @@ class NlpController(BaseController):
         if parsed is None:
             return {
                 "success": False,
+                "error_type": "INVALID_LLM_JSON",
                 "error": parse_error,
                 "system_prompt": system_prompt,
                 "user_prompt": user_prompt,
             }
 
-        # Resolve question_id -> real title/url so the caller can link sources
-        # instead of showing bare IDs.
         doc_lookup = {str(d["question_id"]): d for d in retrived_documents}
         sources = []
         for used_doc in (parsed.get("used_documents") or []):
@@ -386,13 +379,38 @@ class NlpController(BaseController):
         }
 
     @staticmethod
+    def _strip_json_fence(text: str) -> str:
+        
+        stripped = text.strip()
+
+        if not stripped.startswith("```"):
+            return stripped
+
+        # Drop the opening fence line (```json or bare ```)
+        if "\n" in stripped:
+            stripped = stripped.split("\n", 1)[1]
+        else:
+            stripped = stripped[3:]
+
+        # Drop a trailing fence
+        stripped = stripped.rstrip()
+        if stripped.endswith("```"):
+            stripped = stripped[:-3]
+
+        return stripped.strip()
+
+    @staticmethod
     def _safe_parse_llm_json(llm_response: str):
         """Attempts to parse and sanity-check the LLM's JSON output.
         Returns (parsed_dict_or_None, error_message_or_None)."""
         if not llm_response:
             return None, "empty response"
+
+        cleaned = NlpController._strip_json_fence(llm_response)
+
+       
         try:
-            parsed = json.loads(llm_response)
+            parsed = json.loads(cleaned, strict=False)
         except (json.JSONDecodeError, TypeError) as exc:
             return None, f"invalid JSON: {exc}"
 
