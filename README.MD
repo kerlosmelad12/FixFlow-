@@ -24,6 +24,8 @@ FixFlow is an AI-powered developer tool that takes a pasted error message or pro
 
 Built by **[Kerlos Melad Hana]** 
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/kerlosmelad12/FixFlow-)
+
 ---
 
 ## 📄 License
