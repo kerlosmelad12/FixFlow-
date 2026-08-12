@@ -1,4 +1,4 @@
-from fastapi import APIRouter,Depends,status,Request
+from fastapi import APIRouter,status,Request
 from fastapi.responses import JSONResponse
 from .schema.nlp import SimilarErrorsRequest
 from models.ErrorQueryModel import ErrorQueryModel
@@ -8,6 +8,7 @@ from controllers.WebscearchController import WebscearchController
 from controllers.NlpController import NlpController
 from models.Enums.RetriveTypeEnums import RetriveTypeEnums
 from models.Enums.JobProcessingEnums import JobProcessingEnums
+from groq import RateLimitError
 
 nlp_app=APIRouter(
      prefix="/Fixflow-V1/nlp",
@@ -43,7 +44,7 @@ async def get_similar_errors(error_id: str,res: Request,user_input: SimilarError
     if error is None:
 
         return JSONResponse(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             content={
                 "result": ErrorEnums.ERROR_NOT_FOUND.value
             }
@@ -51,7 +52,7 @@ async def get_similar_errors(error_id: str,res: Request,user_input: SimilarError
 
 
     cache_result = await job_model.get_cached_search_result(
-        error
+        str(error.id)
     )
 
     if cache_result is not None:
@@ -61,7 +62,7 @@ async def get_similar_errors(error_id: str,res: Request,user_input: SimilarError
                 "kind": RetriveTypeEnums.CACHED.value,
                 
                 "result": [item.model_dump() if hasattr(item, "model_dump") else item
-                for item in cache_result[0:user_input.limit]] ,
+                for item in cache_result.results[0:user_input.limit]] ,
 
                 "signal": ErrorEnums.MATCHED_ERROR_FOUND.value
             }
@@ -73,12 +74,13 @@ async def get_similar_errors(error_id: str,res: Request,user_input: SimilarError
         scearch_backend=error.source
     )
 
-    query = error.error_signature
+    query = error.error_title
 
     results = web_search_controller.search(
         query=query,
         pagesize=user_input.pagesize
     )
+
 
 
     scored = nlp_controller.rank_similar_web_results(
@@ -103,7 +105,7 @@ async def get_similar_errors(error_id: str,res: Request,user_input: SimilarError
     if cached_job is None:
 
         return JSONResponse(
-            status_code=500,
+            status_code=status.HTTP_404_NOT_FOUND,
             content={
                 "result": "Failed to save cached results."
             }
@@ -118,7 +120,9 @@ async def get_similar_errors(error_id: str,res: Request,user_input: SimilarError
     if updated_job is None:
 
         return JSONResponse(
-            status_code=500,
+
+            statusstatus_code=status.HTTP_404_NOT_FOUND,
+
             content={
                 "result": "Failed to update job status."
             }
@@ -136,9 +140,8 @@ async def get_similar_errors(error_id: str,res: Request,user_input: SimilarError
     )
 
 @nlp_app.post("/answer/{error_id}")
+async def answer_error_quetion( error_id: str, res: Request,user_input: SimilarErrorsRequest):
 
-async def answer_error_quetion(error_id:str,res:Request):
-    
     error_model = await ErrorQueryModel.create_instance(
         res.app.db_client
     )
@@ -147,6 +150,63 @@ async def answer_error_quetion(error_id:str,res:Request):
         res.app.db_client
     )
 
+    # 1. Get original error
+    error = await error_model.get_error_by_error_id(
+        error_id=error_id
+    )
+
+    if error is None:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={
+                "result": ErrorEnums.ERROR_NOT_FOUND.value
+            }
+        )
+
+    # IMPORTANT:
+    # Job is linked using error_message_id = error.id
+    error_message_id = str(error.id)
+
+    # 2. Check if answer already exists
+    saved_answer = await job_model.get_answer_results(
+        error_message_id=error_message_id
+    )
+
+    if saved_answer is not None:
+        return JSONResponse(
+            content={
+                "result": ErrorEnums.LLM_ANSWER_FOUND.value,
+                "llm_response": saved_answer,
+                "source": "job"
+            }
+        )
+
+    # 3. Create web search controller
+    web_search_controller = WebscearchController(
+        scearch_backend=error.source
+    )
+
+    query = error.error_signature
+
+    # 4. Try to get cached search results
+    results = await job_model.get_cached_search_result(
+        error_message_id=error_message_id
+    )
+
+    # 5. Search only if no cached results
+    if results is None:
+
+        results = web_search_controller.search(
+            query=query,
+            pagesize=user_input.pagesize
+        )
+
+        await job_model.save_cached_results(
+            error_message_id=error_message_id,
+            results=results.model_dump()["results"]
+        )
+
+    # 6. Create NLP controller
     nlp_controller = NlpController(
         classifier_client=res.app.classifier,
         vector_store_client=res.app.vectordb,
@@ -156,20 +216,45 @@ async def answer_error_quetion(error_id:str,res:Request):
     )
 
   
+    llm_result = nlp_controller.get_formatted_answer(
+            error.error_text,
+            results,
+            min_similarity=user_input.min_similarity
+        )
 
-    error = await error_model.get_error_by_error_id(
-        error_id=error_id
-    )
+    
 
-    if error is None:
+    # 8. Handle unsuccessful LLM result
+    if not llm_result.get("success"):
 
         return JSONResponse(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             content={
-                "result": ErrorEnums.ERROR_NOT_FOUND.value
+                "result": ErrorEnums.THERE_NO_ANSWER.value,
+                "error": llm_result.get("error"),
+                "source": "llm"
             }
         )
 
+    # 9. Update job status
+    await job_model.update_status(
+        error_message_id,
+        status=JobProcessingEnums.ANSWERD.value
+    )
 
+    # 10. Save answer
+    await job_model.save_answer_results(
+        error_message_id=error_message_id,
+        results=llm_result
+    )
 
-
+    # 11. Return answer
+    return JSONResponse(
+        content={
+            "result": ErrorEnums.LLM_ANSWER_FOUND.value,
+            "llm_response": llm_result,
+            "system_prompt": llm_result.get("system_prompt"),
+            "user_prompt": llm_result.get("user_prompt"),
+            "source": "llm"
+        }
+    )

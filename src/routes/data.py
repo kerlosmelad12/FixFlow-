@@ -13,7 +13,7 @@ from models.Enums.ErrorEnums import ErrorEnums
 from controllers.NlpController import NlpController
 from models.ClusterModel import ClusterModel
 import uuid
-
+from fastapi.encoders import jsonable_encoder
 
 data_app=APIRouter(
     prefix="/Fixflow-V1/data",
@@ -60,6 +60,7 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
         )
 
     extracted_data = extracted_error.get("data")
+
 
 
     if not extracted_data:
@@ -215,7 +216,7 @@ async def get_error_data(error_id: str, res: Request):
         )
 
 
-    job = await job_model.get_job_by_error_id(
+    job = await job_model.get_job(
         str(error.id)
     )
 
@@ -267,14 +268,14 @@ async def get_error_data(error_id: str, res: Request):
     if job.status == JobProcessingEnums.SEARCHED.value:
 
         return JSONResponse(
-            content={
+            content=jsonable_encoder({
                 "result": ErrorEnums.ERROR_FOUND.value,
                 "error_id": error_id,
                 "job_id": str(job.id),
                 "status": job.status,
                 "cached": True,
                 "data": job.cached_results
-            }
+            })
         )
 
   
