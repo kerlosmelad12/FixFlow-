@@ -105,12 +105,10 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
     error_message_id = str(inserted_error.id)
 
     existing_job = await job_model.get_job(
-    error_message_id
-)
+        error_message_id
+    )
 
     if existing_job is not None:
-
-    
 
         if existing_job.status == JobProcessingEnums.SEARCHED.value:
 
@@ -125,8 +123,6 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
                 for item in existing_job.cached_results]
                 }
             )
-
-   
 
         if existing_job.status in [
             JobProcessingEnums.PENDING.value,
@@ -143,12 +139,10 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
                 }
             )
 
-   
-
         if existing_job.status == JobProcessingEnums.FAILED.value:
 
             updated_job = await job_model.update_status(
-                job_id=str(existing_job.id),
+                error_message_id=error_message_id,
                 status=JobProcessingEnums.PENDING.value
             )
 
@@ -162,6 +156,7 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
                     "retry": True
                 }
             )
+
     cluster = nlp_controller.classify_text(
         query
     )

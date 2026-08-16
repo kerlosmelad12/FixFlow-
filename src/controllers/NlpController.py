@@ -4,14 +4,8 @@ from models.DB_Schema.Cluster import Cluster
 from .ProcessController import ProcessController
 from stores.llm.LLMEnums import ChatRoles
 from .extraction_parsing import parse_extraction_output
-from models.DB_Schema.ErrorMessage import ErrorMessage
-from .WebscearchController import WebscearchController
 from models.DB_Schema.Weabscearch import WeabscearchSearchResponse
 from models.DB_Schema.Weabscearch import RetriveSimiler
-from models.DB_Schema.Weabscearch import WeabscearchAnswers
-from models.DB_Schema.Weabscearch import WeabscearchQuestion
-from models.DB_Schema.ProcessingJob import ProcessingJob
-from models.Enums.JobProcessingEnums import JobProcessingEnums
 from .BaseController import BaseController
 from groq import RateLimitError
 
@@ -28,7 +22,6 @@ class NlpController(BaseController):
         self.classifier_client = classifier_client
         self.templete_parser = templete_client
         self.process_controller = ProcessController()
-        self.WebscearchController = WebscearchController(scearch_backend="stackoverflow")
 
         # Scoring weights and threshold now come from settings instead of being
         # hardcoded, so they can be tuned without touching code.
@@ -229,7 +222,7 @@ class NlpController(BaseController):
         return [item.model_dump() for item in scored]
 
     def answer_error_question(self, query_text: str, results: WeabscearchSearchResponse, min_similarity: float = None):
-  
+    
         similer_questions = self.rank_similar_web_results(
             query_text,
             results,
@@ -237,7 +230,7 @@ class NlpController(BaseController):
         )
 
         if not similer_questions:
-            return None, None, None, [], None
+            return None, None, None, [], None, None, None
 
         similer_questions = sorted(
             similer_questions,
@@ -253,7 +246,8 @@ class NlpController(BaseController):
             similirity_score = result['score']
 
             document = {
-            
+                # question_id is included explicitly so the LLM never has to
+                # guess/parse it out of the URL for used_documents.
                 "question_id": question['question_id'],
                 "title": question['title'],
                 'body': question['body'][:self.app_settings.MAX_QUESTION_CHARS],
@@ -295,24 +289,25 @@ class NlpController(BaseController):
             )
         except RateLimitError:
             logger.warning("answer_error_question: LLM rate limit reached.")
-            return None, system_prompt, user_prompt, retrived_documents, "LLM_RATE_LIMIT"
+            return None, system_prompt, user_prompt, retrived_documents, "LLM_RATE_LIMIT", None, None
         except Exception:
             logger.exception("answer_error_question: generation_client.generate failed")
-            return None, system_prompt, user_prompt, retrived_documents, "LLM_GENERATION_ERROR"
+            return None, system_prompt, user_prompt, retrived_documents, "LLM_GENERATION_ERROR", None, None
 
         parsed_response, parse_error = self._safe_parse_llm_json(llm_response)
         if parse_error:
             logger.warning("answer_error_question: LLM response failed JSON validation: %s", parse_error)
             logger.warning("answer_error_question: raw LLM response repr=%r", llm_response)
 
-        return llm_response, system_prompt, user_prompt, retrived_documents, None
+        return llm_response, system_prompt, user_prompt, retrived_documents, None, parsed_response, parse_error
 
     def get_formatted_answer(self, query_text: str, results: WeabscearchSearchResponse, min_similarity: float = None):
 
-        llm_response, system_prompt, user_prompt, retrived_documents, error_type = self.answer_error_question(
+        llm_response, system_prompt, user_prompt, retrived_documents, error_type, parsed, parse_error = self.answer_error_question(
             query_text, results, min_similarity
         )
 
+        # No similar questions were found at all — nothing was sent to the LLM.
         if not retrived_documents:
             return {
                 "success": False,
@@ -320,6 +315,7 @@ class NlpController(BaseController):
                 "error": "No similar questions found to answer from.",
             }
 
+        # generate() raised inside answer_error_question.
         if error_type == "LLM_RATE_LIMIT":
             return {
                 "success": False,
@@ -338,7 +334,9 @@ class NlpController(BaseController):
                 "user_prompt": user_prompt,
             }
 
-        parsed, parse_error = self._safe_parse_llm_json(llm_response)
+        # parsed/parse_error were already computed once inside
+        # answer_error_question -- reused here instead of re-parsing the same
+        # llm_response string a second time.
         if parsed is None:
             return {
                 "success": False,
@@ -348,6 +346,7 @@ class NlpController(BaseController):
                 "user_prompt": user_prompt,
             }
 
+        
         doc_lookup = {str(d["question_id"]): d for d in retrived_documents}
         sources = []
         for used_doc in (parsed.get("used_documents") or []):
@@ -380,7 +379,7 @@ class NlpController(BaseController):
 
     @staticmethod
     def _strip_json_fence(text: str) -> str:
-        
+   
         stripped = text.strip()
 
         if not stripped.startswith("```"):
@@ -408,7 +407,6 @@ class NlpController(BaseController):
 
         cleaned = NlpController._strip_json_fence(llm_response)
 
-       
         try:
             parsed = json.loads(cleaned, strict=False)
         except (json.JSONDecodeError, TypeError) as exc:
