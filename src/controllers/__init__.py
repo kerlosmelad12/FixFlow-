@@ -1,4 +1,6 @@
 from .BaseController import BaseController
 from .DataController import DataController
 from .NlpController import NlpController
-from .WebscearchController import WebscearchController
+from .StackoverflowscearchController import StackoverflowscearchController
+from .GithubSearchController import GithubSearchController
+from .BaseSearchController import BaseSearchController

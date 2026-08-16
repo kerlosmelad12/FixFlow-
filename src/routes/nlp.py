@@ -1,31 +1,27 @@
-from fastapi import APIRouter,status,Request
+from fastapi import APIRouter, status, Request
 from fastapi.responses import JSONResponse
 from .schema.nlp import SimilarErrorsRequest
 from models.ErrorQueryModel import ErrorQueryModel
 from models.JobProcessingModel import JobProcessingModel
 from models.Enums.ErrorEnums import ErrorEnums
-from controllers.WebscearchController import WebscearchController
+from controllers.SearchOrchestratorController import SearchOrchestratorController
 from controllers.NlpController import NlpController
 from models.Enums.RetriveTypeEnums import RetriveTypeEnums
 from models.Enums.JobProcessingEnums import JobProcessingEnums
+from models.DB_Schema.Weabscearch import WeabscearchSearchResponse
 from groq import RateLimitError
 
-nlp_app=APIRouter(
-     prefix="/Fixflow-V1/nlp",
-              tags=['nlp','V1']
+nlp_app = APIRouter(
+    prefix="/Fixflow-V1/nlp",
+    tags=['nlp', 'V1']
 )
 
 
 @nlp_app.post("/similar/{error_id}")
-async def get_similar_errors(error_id: str,res: Request,user_input: SimilarErrorsRequest):
+async def get_similar_errors(error_id: str, res: Request, user_input: SimilarErrorsRequest):
 
-    error_model = await ErrorQueryModel.create_instance(
-        res.app.db_client
-    )
-
-    job_model = await JobProcessingModel.create_instance(
-        res.app.db_client
-    )
+    error_model = await ErrorQueryModel.create_instance(res.app.db_client)
+    job_model = await JobProcessingModel.create_instance(res.app.db_client)
 
     nlp_controller = NlpController(
         classifier_client=res.app.classifier,
@@ -35,53 +31,38 @@ async def get_similar_errors(error_id: str,res: Request,user_input: SimilarError
         templete_client=res.app.templete_parser
     )
 
-  
-
-    error = await error_model.get_error_by_error_id(
-        error_id=error_id
-    )
+    error = await error_model.get_error_by_error_id(error_id=error_id)
 
     if error is None:
-
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
-            content={
-                "result": ErrorEnums.ERROR_NOT_FOUND.value
-            }
+            content={"result": ErrorEnums.ERROR_NOT_FOUND.value}
         )
 
-
-    cache_result = await job_model.get_cached_search_result(
-        str(error.id)
+    cache_key = res.app.redis.build_search_cache_key(
+        error_id=str(error.id),
+        pagesize=user_input.pagesize,
+        min_similarity=user_input.min_similarity,
+        limit=user_input.limit
     )
 
-    if cache_result is not None:
+    cache_result = await res.app.redis.get(cache_key)
 
+    if cache_result is not None:
         return JSONResponse(
             content={
                 "kind": RetriveTypeEnums.CACHED.value,
-                
-                "result": [item.model_dump() if hasattr(item, "model_dump") else item
-                for item in cache_result.results[0:user_input.limit]] ,
-
+                "result": cache_result[0:user_input.limit],
                 "signal": ErrorEnums.MATCHED_ERROR_FOUND.value
             }
         )
 
-
-
-    web_search_controller = WebscearchController(
-        scearch_backend=error.source
-    )
-
     query = error.error_title
+    search_orchestrator = SearchOrchestratorController()
 
-    results = web_search_controller.search(
-        query=query,
-        pagesize=user_input.pagesize
+    results = await search_orchestrator.search_all_sources(
+        query, user_input.pagesize, user_input.limit
     )
-
-
 
     scored = nlp_controller.rank_similar_web_results(
         error.error_text,
@@ -90,87 +71,50 @@ async def get_similar_errors(error_id: str,res: Request,user_input: SimilarError
     )
 
     if not scored:
-
         return JSONResponse(
-            content={
-                "result": ErrorEnums.NO_MATCHED_ERROR.value
-            }
+            content={"result": ErrorEnums.NO_MATCHED_ERROR.value}
         )
 
-    cached_job = await job_model.save_cached_results(
-        error_message_id=str(error.id),
-        results=scored
-    )
+    await res.app.redis.set(cache_key, scored)
 
-    if cached_job is None:
-
-        return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content={
-                "result": "Failed to save cached results."
-            }
-        )
-
- 
     updated_job = await job_model.update_status(
         error_message_id=str(error.id),
         status=JobProcessingEnums.SEARCHED.value
     )
 
     if updated_job is None:
-
         return JSONResponse(
-
-            statusstatus_code=status.HTTP_404_NOT_FOUND,
-
-            content={
-                "result": "Failed to update job status."
-            }
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"result": ErrorEnums.FAIL_UPDATE_JOB.value}
         )
-
-
 
     return JSONResponse(
         content={
             "kind": RetriveTypeEnums.WEB_SCEARCH.value,
-            "result":scored[:user_input.limit],
+            "result": scored[:user_input.limit],
             "signal": ErrorEnums.MATCHED_ERROR_FOUND.value,
             "status": updated_job.status
         }
     )
 
+
 @nlp_app.post("/answer/{error_id}")
-async def answer_error_quetion( error_id: str, res: Request,user_input: SimilarErrorsRequest):
+async def answer_error_quetion(error_id: str, res: Request, user_input: SimilarErrorsRequest):
 
-    error_model = await ErrorQueryModel.create_instance(
-        res.app.db_client
-    )
+    error_model = await ErrorQueryModel.create_instance(res.app.db_client)
+    job_model = await JobProcessingModel.create_instance(res.app.db_client)
 
-    job_model = await JobProcessingModel.create_instance(
-        res.app.db_client
-    )
-
-    # 1. Get original error
-    error = await error_model.get_error_by_error_id(
-        error_id=error_id
-    )
+    error = await error_model.get_error_by_error_id(error_id=error_id)
 
     if error is None:
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
-            content={
-                "result": ErrorEnums.ERROR_NOT_FOUND.value
-            }
+            content={"result": ErrorEnums.ERROR_NOT_FOUND.value}
         )
 
-    # IMPORTANT:
-    # Job is linked using error_message_id = error.id
     error_message_id = str(error.id)
 
-    # 2. Check if answer already exists
-    saved_answer = await job_model.get_answer_results(
-        error_message_id=error_message_id
-    )
+    saved_answer = await job_model.get_answer_results(error_message_id=error_message_id)
 
     if saved_answer is not None:
         return JSONResponse(
@@ -181,32 +125,33 @@ async def answer_error_quetion( error_id: str, res: Request,user_input: SimilarE
             }
         )
 
-    # 3. Create web search controller
-    web_search_controller = WebscearchController(
-        scearch_backend=error.source
-    )
-
     query = error.error_signature
 
-    # 4. Try to get cached search results
-    results = await job_model.get_cached_search_result(
-        error_message_id=error_message_id
+    search_cache_key = res.app.redis.build_search_cache_key(
+        error_id=error_message_id,
+        pagesize=user_input.pagesize,
+        min_similarity=user_input.min_similarity,
+        limit=user_input.limit
     )
 
-    # 5. Search only if no cached results
-    if results is None:
+    cached_results = await res.app.redis.get(search_cache_key)
 
-        results = web_search_controller.search(
+    if cached_results is not None:
+        results = WeabscearchSearchResponse(results=cached_results)
+    else:
+        search_orchestrator = SearchOrchestratorController()
+
+        results = await search_orchestrator.search_all_sources(
             query=query,
-            pagesize=user_input.pagesize
+            pagesize=user_input.pagesize,
+            limit=user_input.limit
         )
 
-        await job_model.save_cached_results(
-            error_message_id=error_message_id,
-            results=results.model_dump()["results"]
+        await res.app.redis.set(
+            search_cache_key,
+            results.model_dump()["results"]
         )
 
-    # 6. Create NLP controller
     nlp_controller = NlpController(
         classifier_client=res.app.classifier,
         vector_store_client=res.app.vectordb,
@@ -215,18 +160,13 @@ async def answer_error_quetion( error_id: str, res: Request,user_input: SimilarE
         templete_client=res.app.templete_parser
     )
 
-  
     llm_result = nlp_controller.get_formatted_answer(
-            error.error_text,
-            results,
-            min_similarity=user_input.min_similarity
-        )
+        error.error_text,
+        results,
+        min_similarity=user_input.min_similarity
+    )
 
-    
-
-    # 8. Handle unsuccessful LLM result
     if not llm_result.get("success"):
-
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
             content={
@@ -236,19 +176,16 @@ async def answer_error_quetion( error_id: str, res: Request,user_input: SimilarE
             }
         )
 
-    # 9. Update job status
     await job_model.update_status(
         error_message_id,
         status=JobProcessingEnums.ANSWERD.value
     )
 
-    # 10. Save answer
     await job_model.save_answer_results(
         error_message_id=error_message_id,
         results=llm_result
     )
 
-    # 11. Return answer
     return JSONResponse(
         content={
             "result": ErrorEnums.LLM_ANSWER_FOUND.value,

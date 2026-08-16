@@ -119,8 +119,6 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
                     "job_id": str(existing_job.id),
                     "status": existing_job.status,
                     "cached": True,
-                    "data": [item.model_dump() if hasattr(item, "model_dump") else item
-                for item in existing_job.cached_results]
                 }
             )
 
@@ -187,21 +185,12 @@ async def upload_error_data(res: Request, error: UserQueryRequest ):
 @data_app.get("/search/{error_id}")
 async def get_error_data(error_id: str, res: Request):
 
-    error_model = await ErrorQueryModel.create_instance(
-        res.app.db_client
-    )
+    error_model = await ErrorQueryModel.create_instance(res.app.db_client)
+    job_model = await JobProcessingModel.create_instance(res.app.db_client)
 
-    job_model = await JobProcessingModel.create_instance(
-        res.app.db_client
-    )
-
-
-    error = await error_model.get_error_by_error_id(
-        error_id
-    )
+    error = await error_model.get_error_by_error_id(error_id)
 
     if error is None:
-
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
             content={
@@ -210,14 +199,9 @@ async def get_error_data(error_id: str, res: Request):
             }
         )
 
-
-    job = await job_model.get_job(
-        str(error.id)
-    )
-
+    job = await job_model.get_job(str(error.id))
 
     if job is None:
-
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
             content={
@@ -226,54 +210,50 @@ async def get_error_data(error_id: str, res: Request):
             }
         )
 
-
     if job.status in [
         JobProcessingEnums.PENDING.value,
         JobProcessingEnums.EXTRACTED.value
     ]:
-
         return JSONResponse(
             content={
                 "result": "Error is still being processed.",
                 "error_id": error_id,
                 "job_id": str(job.id),
-                "status": job.status,
-                "cached": False,
-                "data": None
+                "status": job.status
             }
         )
 
-
-
     if job.status == JobProcessingEnums.FAILED.value:
-
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
                 "result": "Error processing failed.",
                 "error_id": error_id,
                 "job_id": str(job.id),
-                "status": job.status,
-                "cached": False,
-                "data": None
+                "status": job.status
             }
         )
 
-
     if job.status == JobProcessingEnums.SEARCHED.value:
-
+ 
         return JSONResponse(
-            content=jsonable_encoder({
+            content={
                 "result": ErrorEnums.ERROR_FOUND.value,
                 "error_id": error_id,
                 "job_id": str(job.id),
-                "status": job.status,
-                "cached": True,
-                "data": job.cached_results
-            })
+                "status": job.status
+            }
         )
 
-  
+    if job.status == JobProcessingEnums.ANSWERD.value:
+        return JSONResponse(
+            content={
+                "result": "Answer already generated for this error.",
+                "error_id": error_id,
+                "job_id": str(job.id),
+                "status": job.status
+            }
+        )
 
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -109,13 +109,16 @@ class NlpController(BaseController):
         for result in results.results:
 
             question = result.question
-            answers = result.answers
+            answers = [answer for answer in result.answers if answer.score > 0]
+
 
             if question.answer_count <= 0 or not answers:
                 continue
 
             if question.question_id in seen_question_ids:
                 continue
+
+            
 
             top_answers = sorted(
                 answers,
