@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from routes import base_app, data_app, nlp_app
 import uvicorn
@@ -19,23 +20,10 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
-app = FastAPI(
-    title="FixFlow API",
-    version="0.1.0"
-)
 
-
-
-app.include_router(base_app)
-app.include_router(data_app)
-app.include_router(nlp_app)
-
-
-
-
-@app.on_event("startup")
-async def startup_application():
-
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # ---- Startup ----
     settings = get_settings()
 
     llm_factory = LLMFactory(config=settings)
@@ -48,7 +36,6 @@ async def startup_application():
     app.embedding = llm_factory.create(
         provider=settings.EMBEDDING_BACKEND
     )
-
     logger.info("Embedding model loaded successfully.")
 
     # Redis
@@ -56,52 +43,41 @@ async def startup_application():
         settings.REDIS_URL,
         decode_responses=True
     )
-
     app.redis = RedisCacheController(
         redis_client=app.redis_conn
     )
-
     logger.info("Redis cache connected successfully.")
 
     # Generation LLM
     app.generation = llm_factory.create(
         provider=settings.GENERATION_BACKEND
     )
-
     logger.info("Generation model loaded successfully.")
 
     # Classifier
     app.classifier = classifier_factory.create(
         provider=settings.CLASSIFIER_BACKEND
     )
-
     app.classifier.load_model()
     app.classifier.load_label_encoder()
     app.classifier.load_text_encoder()
-
     logger.info("Classifier model loaded successfully.")
 
     # Vector DB
     app.vectordb = vectordb_factory.create(
         provider=settings.VECTOR_STORE_BACKEND
     )
-
     app.vectordb.set_distance_metric(
         distance_metric=settings.DISTANCE_METRIC
     )
-
     app.vectordb.connect()
-
     logger.info("VectorDB connected successfully.")
 
     # MongoDB
     app.mongo_conn = AsyncIOMotorClient(
         settings.MONGODB_URI
     )
-
-    app.db_client = app.mongo_conn[
-        settings.DB_NAME
-    ]
+    app.db_client = app.mongo_conn[settings.DB_NAME]
 
     # Template parser
     app.templete_parser = Templete_parser(
@@ -111,17 +87,24 @@ async def startup_application():
 
     logger.info("Application startup completed.")
 
+    yield  # <-- app runs while paused here
 
-
-
-@app.on_event("shutdown")
-async def shutdown_application():
-
+    # ---- Shutdown ----
     app.mongo_conn.close()
-
     await app.redis_conn.close()
-
     logger.info("Application shutdown completed.")
+
+
+app = FastAPI(
+    title="FixFlow API",
+    version="0.1.0",
+    lifespan=lifespan
+)
+
+app.include_router(base_app)
+app.include_router(data_app)
+app.include_router(nlp_app)
+
 
 if __name__ == "__main__":
     uvicorn.run(
