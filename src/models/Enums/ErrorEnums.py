@@ -12,6 +12,7 @@ class ErrorEnums(Enum):
     NO_EXTRAXTED_ERROR="no extracted errors"
     NO_MATCHED_ERROR="no matched error found"
     MATCHED_ERROR_FOUND="Matched error found"
+    FAIL_UPDATE_JOB="Failed to update job status."
 
     THERE_NO_ANSWER="no llm answer"
     LLM_ANSWER_FOUND="llm answer response approved"
@@ -21,3 +22,4 @@ class ErrorEnums(Enum):
 
 class ErrorSource(Enum):
     STACK_OVERFLOW="stackoverflow"
+    

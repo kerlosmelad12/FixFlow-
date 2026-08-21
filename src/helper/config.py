@@ -66,18 +66,32 @@ class Settings(BaseSettings):
 
     ##search Configuration
     STACK_OVERFLOW_SCEARCH_BACKEND:str
+    GITHUB_SCEARCH_BACKEND:str
     STACK_OVERFLOW_BASE_URL:str
+    GITHUB_TOKEN:str
+    GITHUB_BASE_URL:str
 
     MAX_ANSWER_CHARS:int
     MAX_QUESTION_CHARS:int
     MAX_ANSWERS_PER_DOCUMENT:int
     MAX_DOCUMENTS:int
 
+    CACHE_TTL_SECONDS:int
+    REDIS_URL:str
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    
+    def get_all_scearch_backends(self) -> list[str]:
+        return [
+            self.STACK_OVERFLOW_SCEARCH_BACKEND,
+            self.GITHUB_SCEARCH_BACKEND,
+        ]
+
 
 
 
