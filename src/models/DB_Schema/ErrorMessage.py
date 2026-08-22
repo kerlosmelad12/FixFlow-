@@ -17,7 +17,7 @@ class ErrorMessage(BaseModel):
     raw_extracted_tags: Optional[List[str]] = [] # All tags
     source: Optional[str] = ErrorSource.STACK_OVERFLOW.value             
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    answer_ids: Optional[List[ObjectId]] = []
+    answer_id: Optional[ObjectId] = Field(default=None)
 
     @classmethod
     def get_indexes(cls):

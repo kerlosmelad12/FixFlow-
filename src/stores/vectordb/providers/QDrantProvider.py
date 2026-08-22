@@ -3,6 +3,8 @@ from ..VectordbEnums import DistanceMetric
 from qdrant_client import models, QdrantClient
 import logging
 from typing import List
+from qdrant_client.models import PointIdsList
+
 
 class QDrantProvider(VectordbInterface):
 
@@ -53,6 +55,24 @@ class QDrantProvider(VectordbInterface):
 
         self.client.delete_collection(collection_name=collection_name)
         return True
+
+    def delete_point(self, collection_name: str, record_id):
+        try:
+            self.client.delete(
+                collection_name=collection_name,
+                points_selector=PointIdsList(
+                    points=[record_id]
+                ),
+            )
+            return True
+
+        except Exception:
+            self.logger.exception(
+                "Error while deleting point %s from %s",
+                record_id,
+                collection_name,
+            )
+            return False
 
 
     def create_collection(self,collection_name:str
