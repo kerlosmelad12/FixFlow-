@@ -79,6 +79,8 @@ class Settings(BaseSettings):
     CACHE_TTL_SECONDS:int
     REDIS_URL:str
 
+    DEDUP_SIMILARITY_THRESHOLD:float
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

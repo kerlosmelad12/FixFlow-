@@ -1,8 +1,8 @@
 from enum import Enum
 
 class CollectionValues(Enum):
-    ERRORS="errors"
-    QUESTIONS="questions"
-    ERRORTAG="tags"
-    JOBS="jobs"
-    CLUSTERS="clusters"
+    QUESTIONS = "questions"
+    JOBS = "jobs"
+    CLUSTERS = "clusters"
+    ANSWERS = "answers"
+    ANSWERS_HISTORY = "answers_history"   
