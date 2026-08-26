@@ -13,6 +13,11 @@ from models.Enums.JobProcessingEnums import JobProcessingEnums
 from models.DB_Schema.Weabscearch import WeabscearchSearchResponse
 from groq import RateLimitError
 import logging
+from .schema.nlp import AnswerFeedback
+from models.Enums.Feedbackenums import Feedbackenums
+from models.DB_Schema.Feedback import AnswerFeedback
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -325,3 +330,62 @@ async def answer_error_quetion( error_id: str, res: Request,
             "source": "llm"
         }
     )
+
+
+@nlp_app.post("/answer/{error_id}/feedback")
+async def submit_feedback(error_id: str, res: Request, feedback: AnswerFeedback):
+        answers_model = await AnswersModel.create_instance(res.app.db_client)
+
+        error_model=await ErrorQueryModel.create_instance(res.app.db_client)
+
+        error=await error_model.get_error_by_error_id(error_id=error_id)
+                
+        existing_answer = await answers_model.get_answer_by_error_id(error_id)
+
+        if existing_answer is None:
+                    return JSONResponse(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        content={"result": ErrorEnums.NO_ANSWER_FOR_FEEDBACK.value}
+                    )
+
+        nlp_controller = NlpController(
+                classifier_client=res.app.classifier,
+                vector_store_client=res.app.vectordb,
+                generation_client=res.app.generation,
+                embedding_client=res.app.embedding,
+                templete_client=res.app.templete_parser
+            )
+
+        sentiment=nlp_controller.feedback_analysis(feedback.feedback_text)
+
+        sentiment_encode =1 if sentiment== Feedbackenums.POSITIVE.VALUE else 0
+
+
+        if not feedback.score.value:
+
+            all_score=sentiment_encode
+
+        all_score=sentiment_encode+ feedback.score.value
+
+
+        AnswerFeedback(
+            error_id=error.id,
+            feedback_text=feedback.feedback_text,
+            rating=all_score,
+            answer_id=str(existing_answer.id)
+        )
+
+
+        
+
+             
+        
+
+        
+
+
+        
+        
+        
+
+

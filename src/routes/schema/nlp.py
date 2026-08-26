@@ -6,3 +6,10 @@ class SimilarErrorsRequest(BaseModel):
     min_similarity: float = Field(default=0.6, le=1.0)
     pagesize: int = Field(default=10, ge=1, le=50)
 
+
+
+class AnswerFeedback(BaseModel):
+
+    feedback_text:str=Field(...,min_lenght=4)
+    score:int=None
+    
