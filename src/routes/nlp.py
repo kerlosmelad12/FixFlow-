@@ -112,6 +112,7 @@ async def get_similar_errors(error_id: str, res: Request, user_input: SimilarErr
 
     if not scored:
         return JSONResponse(
+            status_code=status.HTTP_502_BAD_GATEWAY,                
             content={"result": ErrorEnums.NO_MATCHED_ERROR.value}
         )
 
@@ -144,14 +145,7 @@ async def get_similar_errors(error_id: str, res: Request, user_input: SimilarErr
 @nlp_app.post("/answer/{error_id}")
 async def answer_error_quetion( error_id: str, res: Request,
                                 user_input: SimilarErrorsRequest, force_refresh: bool = False):
-    """
-    force_refresh=False (default): if an answer already exists for this
-    error, return it as-is - no search, no LLM call.
-
-    force_refresh=True: regenerate the answer even if one exists. The
-    previous answer is archived (not lost) via AnswersModel.update_answer,
-    and the version counter increments.
-    """
+   
 
     error_model = await ErrorQueryModel.create_instance(res.app.db_client)
     job_model = await JobProcessingModel.create_instance(res.app.db_client)
@@ -181,7 +175,7 @@ async def answer_error_quetion( error_id: str, res: Request,
             }
         )
 
-    query = error.error_signature
+    query = error.error_title
 
     search_cache_key = res.app.redis.build_search_cache_key(
         error_id=error_message_id,
@@ -189,6 +183,7 @@ async def answer_error_quetion( error_id: str, res: Request,
         min_similarity=user_input.min_similarity,
         limit=user_input.limit
     )
+
 
     try:
         cached_results = await res.app.redis.get(search_cache_key)
@@ -259,6 +254,9 @@ async def answer_error_quetion( error_id: str, res: Request,
                 "source": "llm"
             }
         )
+
+
+    
 
     if not llm_result.get("success"):
         return JSONResponse(
