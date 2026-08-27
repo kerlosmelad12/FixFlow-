@@ -11,6 +11,8 @@ from groq import RateLimitError
 from models.DB_Schema.ErrorMessage import ErrorMessage
 import numpy as np
 import uuid
+from textblob import TextBlob
+from models.Enums.Feedbackenums import Feedbackenums
 
 
 logger = logging.getLogger(__name__)
@@ -29,6 +31,7 @@ class NlpController(BaseController):
         self.vector_store_client = vector_store_client
         self.classifier_client = classifier_client
         self.templete_parser = templete_client
+
 
         self.process_controller = ProcessController()
 
@@ -747,7 +750,27 @@ class NlpController(BaseController):
                 error_id,
             )
             return False
-    
+
+
+    @staticmethod
+    def feedback_analysis( text: str) -> dict:
+       
+        blob = TextBlob(text)
+        
+        polarity = blob.sentiment.polarity
+        
+        subjectivity = blob.sentiment.subjectivity
+        
+        # Categorize based on polarity threshold
+        if polarity > 0.1:
+            sentiment = Feedbackenums.POSITIVE.value
+        elif polarity < -0.1:
+            sentiment = Feedbackenums.NEGATIVE.value
+        else:
+            sentiment = Feedbackenums.NEUTRAL.value    
+
+        return sentiment
+        
     @staticmethod
     def _cosine_similarity( vec1,vec2,):
 

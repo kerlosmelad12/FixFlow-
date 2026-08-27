@@ -13,6 +13,11 @@ from models.Enums.JobProcessingEnums import JobProcessingEnums
 from models.DB_Schema.Weabscearch import WeabscearchSearchResponse
 from groq import RateLimitError
 import logging
+from models.Enums.Feedbackenums import Feedbackenums
+from .schema.nlp import AnswerFeedbackRequest
+from models.DB_Schema.Feedback import AnswerFeedback as AnswerFeedbackDB
+from models.FeedbackModel import FeedbackModel
+
 
 logger = logging.getLogger(__name__)
 
@@ -324,4 +329,61 @@ async def answer_error_quetion( error_id: str, res: Request,
                         ),
             "source": "llm"
         }
+    )
+
+
+
+
+@nlp_app.post("/answer/{error_id}/feedback")
+async def submit_feedback(error_id: str, res: Request, feedback: AnswerFeedbackRequest):
+    error_model = await ErrorQueryModel.create_instance(res.app.db_client)
+    answers_model = await AnswersModel.create_instance(res.app.db_client)
+    feedback_model= await FeedbackModel.create_instance(res.app.db_client)
+
+    error = await error_model.get_error_by_error_id(error_id=error_id)
+    if error is None:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"result": ErrorEnums.ERROR_NOT_FOUND.value}
+        )
+
+    existing_answer = await answers_model.get_answer_by_error_id(error.id)
+    if existing_answer is None:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"result": ErrorEnums.NO_ANSWER_FOR_FEEDBACK.value}
+        )
+
+    nlp_controller = NlpController(
+        classifier_client=res.app.classifier,
+        vector_store_client=res.app.vectordb,
+        generation_client=res.app.generation,
+        embedding_client=res.app.embedding,
+        templete_client=res.app.templete_parser
+    )
+
+    sentiment = nlp_controller.feedback_analysis(feedback.feedback_text)
+    sentiment_encode = 1 if sentiment == Feedbackenums.POSITIVE.value else 0
+
+    all_score = sentiment_encode + (feedback.score or 0)
+    rating = min(max(all_score, 1), 5)  # clamp into the 1-5 range the DB model expects
+
+    feed_back = AnswerFeedbackDB(
+        error_id=str(error.id),
+        answer_id=str(existing_answer.id),
+        feedback_text=feedback.feedback_text,
+        sentiment=sentiment,
+        rating=rating,
+    ).dict()
+
+    # persist it — you'll need a method on AnswersModel/FeedbackModel for this
+    await feedback_model.insert_feedback(feed_back)
+
+    if rating < 3:
+        logger.info("Low-rated feedback received for error_id=%s (rating=%s)", error_id, rating)
+        # e.g. flag for review, trigger a re-generation, notify a queue, etc.
+
+    return JSONResponse(
+        content={"result": ErrorEnums.FEEDBACK_INSERTED_APPROVED.value
+                 , "rating": rating}
     )
