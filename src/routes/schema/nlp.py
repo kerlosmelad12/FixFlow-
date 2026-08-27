@@ -8,8 +8,6 @@ class SimilarErrorsRequest(BaseModel):
 
 
 
-class AnswerFeedback(BaseModel):
-
-    feedback_text:str=Field(...,min_lenght=4)
-    score:int=None
-    
+class AnswerFeedbackRequest(BaseModel):
+    feedback_text: str = Field(..., min_length=4)
+    score: int = Field(default=0, ge=0, le=5)

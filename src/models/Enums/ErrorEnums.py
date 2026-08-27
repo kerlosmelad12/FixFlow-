@@ -18,6 +18,8 @@ class ErrorEnums(Enum):
     LLM_ANSWER_FOUND="llm answer response approved"
     NO_ANSWER_FOR_FEEDBACK="No answer found for this error to give feedback on."
 
+    FEEDBACK_INSERTED_APPROVED="feedback_recorded"
+
 
 
 

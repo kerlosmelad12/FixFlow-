@@ -5,4 +5,5 @@ class CollectionValues(Enum):
     JOBS = "jobs"
     CLUSTERS = "clusters"
     ANSWERS = "answers"
-    ANSWERS_HISTORY = "answers_history"   
+    ANSWERS_HISTORY = "answers_history"  
+    FEEDBACK="answer_feedback" 
