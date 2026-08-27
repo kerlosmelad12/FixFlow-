@@ -16,6 +16,7 @@ import logging
 from models.Enums.Feedbackenums import Feedbackenums
 from .schema.nlp import AnswerFeedbackRequest
 from models.DB_Schema.Feedback import AnswerFeedback as AnswerFeedbackDB
+from models.FeedbackModel import FeedbackModel
 
 
 logger = logging.getLogger(__name__)
@@ -337,6 +338,7 @@ async def answer_error_quetion( error_id: str, res: Request,
 async def submit_feedback(error_id: str, res: Request, feedback: AnswerFeedbackRequest):
     error_model = await ErrorQueryModel.create_instance(res.app.db_client)
     answers_model = await AnswersModel.create_instance(res.app.db_client)
+    feedback_model= await FeedbackModel.create_instance(res.app.db_client)
 
     error = await error_model.get_error_by_error_id(error_id=error_id)
     if error is None:
@@ -370,11 +372,12 @@ async def submit_feedback(error_id: str, res: Request, feedback: AnswerFeedbackR
         error_id=str(error.id),
         answer_id=str(existing_answer.id),
         feedback_text=feedback.feedback_text,
+        sentiment=sentiment,
         rating=rating,
-    )
+    ).dict()
 
     # persist it — you'll need a method on AnswersModel/FeedbackModel for this
-    await answers_model.insert_feedback(feed_back)
+    await feedback_model.insert_feedback(feed_back)
 
     if rating < 3:
         logger.info("Low-rated feedback received for error_id=%s (rating=%s)", error_id, rating)

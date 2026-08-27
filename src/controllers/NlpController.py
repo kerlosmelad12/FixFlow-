@@ -32,7 +32,6 @@ class NlpController(BaseController):
         self.classifier_client = classifier_client
         self.templete_parser = templete_client
 
-        self.blob=TextBlob()
 
         self.process_controller = ProcessController()
 
