@@ -36,10 +36,6 @@ class Answer(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    # FIX: ObjectId isn't JSON-serializable on its own. This serializer only
-    # kicks in for mode="json" dumps (i.e. API responses) - plain
-    # model_dump() calls used for Mongo writes still get a real ObjectId,
-    # which is what Motor/PyMongo expects.
     @field_serializer("id", "error_id", "job_id", when_used="json")
     def _serialize_object_id(self, value: Optional[ObjectId]) -> Optional[str]:
         return str(value) if value is not None else None
