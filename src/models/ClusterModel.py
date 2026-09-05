@@ -88,7 +88,7 @@ class ClusterModel(DataBaseModel):
 
         error_object_id = ObjectId(error_id)
 
-        result = await self.ClusterCollection.delete_one(
+        result = await self.Cluster_Collection.delete_one(
             {
                 "error_id": error_object_id
             }

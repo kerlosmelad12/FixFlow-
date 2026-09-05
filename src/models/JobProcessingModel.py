@@ -34,12 +34,7 @@ class JobProcessingModel(DataBaseModel):
         return instance
 
     async def create_job(self, job: ProcessingJob):
-        """
-        Insert a new job. If another request already inserted a job for the
-        same error_message_id in the meantime (race condition between the
-        existence-check in the route and this insert), we don't crash —
-        we fetch and return the job that actually won the race.
-        """
+   
         try:
             result = await self.JobsCollection.insert_one(
                 job.dict(by_alias=True, exclude_unset=True)

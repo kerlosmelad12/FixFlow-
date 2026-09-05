@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FixFlow Frontend</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <header>
+    <h1>FixFlow Error Solver</h1>
+  </header>
+
+  <main>
+    <!-- Upload Error -->
+    <section class="card">
+      <h2>Upload Error</h2>
+      <textarea id="errorInput" placeholder="Paste your error message..."></textarea>
+      <button onclick="uploadError()">Submit</button>
+      <pre id="uploadResult"></pre>
+    </section>
+
+    <!-- Search Error -->
+    <section class="card">
+      <h2>Search Error</h2>
+      <input id="searchId" placeholder="Enter Error ID"/>
+      <button onclick="searchError()">Search</button>
+      <pre id="searchResult"></pre>
+    </section>
+
+    <!-- Answer -->
+    <section class="card">
+      <h2>Get Answer</h2>
+      <input id="answerId" placeholder="Enter Error ID"/>
+      <button onclick="getAnswer()">Get Answer</button>
+      <!-- Fixed: getAnswer(forceRefresh=true) was a JS assignment expression,
+           not a named argument like in Python. It happened to work by
+           accident (it also created a stray global `forceRefresh` variable).
+           Passing the value positionally is the correct, unambiguous form. -->
+      <button onclick="getAnswer(true)">Generate New Answer</button>
+      <pre id="answerResult"></pre>
+    </section>
+
+    <!-- Feedback -->
+    <section class="card">
+      <h2>Submit Feedback</h2>
+      <input id="feedbackId" placeholder="Enter Error ID"/>
+      <textarea id="feedbackText" placeholder="Your feedback..."></textarea>
+      <input id="feedbackScore" type="number" min="1" max="5" value="3"/>
+      <button onclick="submitFeedback()">Submit Feedback</button>
+      <pre id="feedbackResult"></pre>
+    </section>
+
+    <!-- Similar Errors -->
+    <section class="card">
+      <h2>Similar Errors</h2>
+      <input id="similarId" placeholder="Enter Error ID"/>
+      <button onclick="getSimilarErrors()">Find Similar</button>
+      <pre id="similarResult"></pre>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -58,15 +58,7 @@ class ErrorQueryModel(DataBaseModel):
         return error
 
     async def update_error(self, error_text: str, error_id: str):
-        """
-        Update the stored error_text for an existing error record.
 
-        Fixed: previously built ErrorMessage(**updated_error) from the
-        return value of update_one(), which is an UpdateResult object,
-        not a document — that would have raised a TypeError on every
-        call. Now re-fetches the actual updated document, same pattern
-        JobProcessingModel already uses for its update methods.
-        """
         result = await self.ErrorCollection.find_one(
             {"error_id": error_id}
         )

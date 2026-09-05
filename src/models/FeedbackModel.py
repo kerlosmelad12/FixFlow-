@@ -24,9 +24,11 @@ class FeedbackModel(DataBaseModel):
         instance = cls(db_client)
         await instance.init_collection()
         return instance
-
-    async def insert_feedback(self, feedback:AnswerFeedback):
-        document = feedback
+    
+    async def insert_feedback(self, feedback: AnswerFeedback):
+        document = feedback.model_dump(by_alias=True, exclude_none=True)
         result = await self.FeedbackCollection.insert_one(document)
-        feedback['id'] = str(result.inserted_id)
-        return AnswerFeedback(**feedback)
+        return {**document, "_id": str(result.inserted_id)}
+
+
+    

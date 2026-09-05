@@ -311,7 +311,7 @@ async def get_error_data(error_id: str, res: Request):
             }
         )
 
-    if job.status == JobProcessingEnums.ANSWERD.value:
+    if job.status == JobProcessingEnums.ANSWERED.value:
         return JSONResponse(
             content={
                 "result": "Answer already generated for this error.",
@@ -355,8 +355,7 @@ async def delete_error(error_id: str, res: Request):
     error = await error_model.get_error_by_error_id(
         error_id
     )
-    error = await error_model.get_error_by_error_id(error_id)
-
+    
     logger.debug("DELETE REQUEST error_id=%s", error_id)
     logger.debug("DELETE FOUND=%s", error)
 
@@ -390,7 +389,7 @@ async def delete_error(error_id: str, res: Request):
     )
 
     # Delete error
-    deleted_error = await error_model.delete_by_error_id(
+    deleted_error = await error_model.delete_error(
         error_id
     )
 

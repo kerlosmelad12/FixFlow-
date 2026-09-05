@@ -11,6 +11,8 @@ from stores.classifiers.ClassiferFactory import ClassiferFactory
 from stores.vectordb.VectordbFactory import VectordbFactory
 from stores.templetes.Templete_parser import Templete_parser
 from stores.Cache.RedisCacheController import RedisCacheController
+from fastapi.middleware.cors import CORSMiddleware
+
 
 
 logger = logging.getLogger(__name__)
@@ -101,6 +103,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],          # tighten this to specific origins in production
+    allow_credentials=True,
+    allow_methods=["*"],          # must include OPTIONS, POST, GET, DELETE
+    allow_headers=["*"],
+)
 app.include_router(base_app)
 app.include_router(data_app)
 app.include_router(nlp_app)
@@ -113,3 +123,4 @@ if __name__ == "__main__":
         port=5000,
         reload=True
     )
+
