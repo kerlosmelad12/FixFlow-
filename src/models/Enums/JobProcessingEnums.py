@@ -5,4 +5,4 @@ class JobProcessingEnums(Enum):
     EXTRACTED = "extracted"       
     SEARCHED = "searched"        
     FAILED = "failed"     
-    ANSWERD = "answerd"        
+    ANSWERED = "ANSWERED"        

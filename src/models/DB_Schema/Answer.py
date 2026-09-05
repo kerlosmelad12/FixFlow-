@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict, field_serializer
 from typing import Optional, List
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Answer(BaseModel):
@@ -12,8 +12,9 @@ class Answer(BaseModel):
     )
 
     id: Optional[ObjectId] = Field(default=None, alias="_id")
-    error_id: ObjectId
-    job_id: Optional[ObjectId] = None
+    error_id: str
+    job_id: str = None
+    version: int = 1
 
     error_type: str = Field(..., min_length=1)
     root_cause: str = Field(..., min_length=1)
@@ -33,8 +34,8 @@ class Answer(BaseModel):
 
     version: int = 1
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     @field_serializer("id", "error_id", "job_id", when_used="json")
     def _serialize_object_id(self, value: Optional[ObjectId]) -> Optional[str]:
@@ -46,9 +47,9 @@ class Answer(BaseModel):
         return [
             {
                 "key": [
-                    ("error_id", 1)
+                    ("error_id", 1),("version", 1)
                 ],
-                "name": "error_id_unique",
+                "name": "error_id_version_unique",
                 "unique": True
             },
 

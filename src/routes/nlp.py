@@ -117,7 +117,7 @@ async def get_similar_errors(error_id: str, res: Request, user_input: SimilarErr
 
     if not scored:
         return JSONResponse(
-            status_code=status.HTTP_502_BAD_GATEWAY,                
+            status_code=status.HTTP_502_BAD_GATEWAY,
             content={"result": ErrorEnums.NO_MATCHED_ERROR.value}
         )
 
@@ -148,9 +148,8 @@ async def get_similar_errors(error_id: str, res: Request, user_input: SimilarErr
 
 
 @nlp_app.post("/answer/{error_id}")
-async def answer_error_quetion( error_id: str, res: Request,
+async def answer_error_quetion(error_id: str, res: Request,
                                 user_input: SimilarErrorsRequest, force_refresh: bool = False):
-   
 
     error_model = await ErrorQueryModel.create_instance(res.app.db_client)
     job_model = await JobProcessingModel.create_instance(res.app.db_client)
@@ -166,10 +165,61 @@ async def answer_error_quetion( error_id: str, res: Request,
 
     error_message_id = str(error.id)
 
-    existing_answer = await answers_model.get_answer_by_error_id(error.id)
+    # When force_refresh is set, the caller is implicitly saying "the last
+    # answer wasn't good enough" — re-running the exact same search with the
+    # exact same parameters would very likely just produce the same (or a
+    # near-identical) answer again. So on force_refresh we widen the search:
+    # loosen the similarity threshold and pull in more results, within sane
+    # bounds, instead of blindly repeating the same narrow query.
+    effective_min_similarity = user_input.min_similarity
+    effective_limit = user_input.limit
+    effective_pagesize = user_input.pagesize
 
+    if force_refresh:
+        MIN_SIMILARITY_FLOOR = 0.15
+        MIN_SIMILARITY_STEP = 0.15
+        LIMIT_CAP = 25
+        LIMIT_STEP = 5
+        PAGESIZE_CAP = 20
+        PAGESIZE_STEP = 5
 
-    if existing_answer is not None and not force_refresh:
+        effective_min_similarity = max(
+            MIN_SIMILARITY_FLOOR,
+            user_input.min_similarity - MIN_SIMILARITY_STEP
+        )
+        effective_limit = min(
+            LIMIT_CAP,
+            user_input.limit + LIMIT_STEP
+        )
+        effective_pagesize = min(
+            PAGESIZE_CAP,
+            user_input.pagesize + PAGESIZE_STEP
+        )
+
+        logger.info(
+            "force_refresh widened search for error_id=%s: "
+            "min_similarity %.2f -> %.2f, limit %d -> %d, pagesize %d -> %d",
+            error_id,
+            user_input.min_similarity, effective_min_similarity,
+            user_input.limit, effective_limit,
+            user_input.pagesize, effective_pagesize,
+        )
+
+    existing_answer = await answers_model.get_answer_by_error_id(str(error.id))
+    search_cache_key = res.app.redis.build_search_cache_key(
+        error_id=error_message_id,
+        pagesize=effective_pagesize,
+        min_similarity=effective_min_similarity,
+        limit=effective_limit
+    )
+
+    try:
+        cached_results = await res.app.redis.get(search_cache_key)
+    except Exception:
+        logger.exception("Redis get failed for search_cache_key=%s", search_cache_key)
+        cached_results = None
+
+    if existing_answer is not None and not force_refresh and cached_results is not None:
         return JSONResponse(
             content={
                 "result": ErrorEnums.LLM_ANSWER_FOUND.value,
@@ -182,21 +232,12 @@ async def answer_error_quetion( error_id: str, res: Request,
 
     query = error.error_title
 
-    search_cache_key = res.app.redis.build_search_cache_key(
-        error_id=error_message_id,
-        pagesize=user_input.pagesize,
-        min_similarity=user_input.min_similarity,
-        limit=user_input.limit
-    )
-
-
-    try:
-        cached_results = await res.app.redis.get(search_cache_key)
-    except Exception:
-        logger.exception("Redis get failed for search_cache_key=%s", search_cache_key)
-        cached_results = None
-
-    if cached_results is not None:
+    # force_refresh means "ignore everything cached, start clean" — so it
+    # must also bypass the search-results cache, not just the DB answer.
+    # Previously force_refresh only skipped the DB answer while still
+    # reusing old search results, silently regenerating an LLM answer from
+    # stale search context.
+    if cached_results is not None and not force_refresh:
         results = WeabscearchSearchResponse(results=cached_results)
     else:
         search_orchestrator = SearchOrchestratorController()
@@ -204,8 +245,8 @@ async def answer_error_quetion( error_id: str, res: Request,
         try:
             results = await search_orchestrator.search_all_sources(
                 query=query,
-                pagesize=user_input.pagesize,
-                limit=user_input.limit
+                pagesize=effective_pagesize,
+                limit=effective_limit
             )
         except Exception as e:
             logger.exception("search_all_sources failed for error_id=%s", error_id)
@@ -238,7 +279,7 @@ async def answer_error_quetion( error_id: str, res: Request,
         llm_result = nlp_controller.get_formatted_answer(
             error.error_text,
             results,
-            min_similarity=user_input.min_similarity
+            min_similarity=effective_min_similarity
         )
     except RateLimitError as e:
         logger.warning("Rate limited while generating answer for error_id=%s: %s", error_id, e)
@@ -259,9 +300,6 @@ async def answer_error_quetion( error_id: str, res: Request,
                 "source": "llm"
             }
         )
-
-
-    
 
     if not llm_result.get("success"):
         return JSONResponse(
@@ -289,25 +327,25 @@ async def answer_error_quetion( error_id: str, res: Request,
         "missing_information": llm_result.get("missing_information") or [],
     }
 
+   
     try:
-        if existing_answer is not None and force_refresh:
-            # Archives the old version into AnswerHistoryCollection, then
-            # overwrites the current one and bumps version.
-            await answers_model.update_answer(error.id, answer_fields)
-            persisted_answer = await answers_model.get_answer_by_error_id(error.id)
+        version = (existing_answer.version + 1) if existing_answer else 1
 
-        else:
-            persisted_answer = await answers_model.insert_answer(
-                Answer(
-                    error_id=error.id,
-                    job_id=job.id if job is not None else None,
-                    **answer_fields
-                )
+        if existing_answer is not None:
+            await answers_model.update_answer(existing_answer)
+
+        persisted_answer = await answers_model.insert_answer(
+            Answer(
+                error_id=str(error.id),
+                job_id=str(job.id) if job else None,
+                version=version,
+                **answer_fields
             )
+        )
 
         await job_model.update_status(
             error_message_id,
-            status=JobProcessingEnums.ANSWERD.value
+            status=JobProcessingEnums.ANSWERED.value
         )
     except Exception:
         logger.exception("Failed to persist answer for error_id=%s", error_id)
@@ -325,20 +363,18 @@ async def answer_error_quetion( error_id: str, res: Request,
         content={
             "result": ErrorEnums.LLM_ANSWER_FOUND.value,
             "llm_response": persisted_answer.model_dump(
-             mode="json", by_alias=True, exclude_none=True
-                        ),
+                mode="json", by_alias=True, exclude_none=True
+            ),
             "source": "llm"
         }
     )
-
-
 
 
 @nlp_app.post("/answer/{error_id}/feedback")
 async def submit_feedback(error_id: str, res: Request, feedback: AnswerFeedbackRequest):
     error_model = await ErrorQueryModel.create_instance(res.app.db_client)
     answers_model = await AnswersModel.create_instance(res.app.db_client)
-    feedback_model= await FeedbackModel.create_instance(res.app.db_client)
+    feedback_model = await FeedbackModel.create_instance(res.app.db_client)
 
     error = await error_model.get_error_by_error_id(error_id=error_id)
     if error is None:
@@ -347,7 +383,9 @@ async def submit_feedback(error_id: str, res: Request, feedback: AnswerFeedbackR
             content={"result": ErrorEnums.ERROR_NOT_FOUND.value}
         )
 
-    existing_answer = await answers_model.get_answer_by_error_id(error.id)
+    # Was passed as error.id (ObjectId) before, but error_id is stored as a
+    # string in AnswerCollection, so the lookup never matched anything.
+    existing_answer = await answers_model.get_answer_by_error_id(str(error.id))
     if existing_answer is None:
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -365,8 +403,9 @@ async def submit_feedback(error_id: str, res: Request, feedback: AnswerFeedbackR
     sentiment = nlp_controller.feedback_analysis(feedback.feedback_text)
     sentiment_encode = 1 if sentiment == Feedbackenums.POSITIVE.value else 0
 
-    all_score = sentiment_encode + (feedback.score or 0)
-    rating = min(max(all_score, 1), 5)  # clamp into the 1-5 range the DB model expects
+    sentiment_score = 5 if sentiment == Feedbackenums.POSITIVE.value else 1
+    provided_score = feedback.score if feedback.score is not None else 3
+    rating = round((sentiment_score + provided_score) / 2)
 
     feed_back = AnswerFeedbackDB(
         error_id=str(error.id),
@@ -374,16 +413,14 @@ async def submit_feedback(error_id: str, res: Request, feedback: AnswerFeedbackR
         feedback_text=feedback.feedback_text,
         sentiment=sentiment,
         rating=rating,
-    ).dict()
+    )
 
-    # persist it — you'll need a method on AnswersModel/FeedbackModel for this
+ 
     await feedback_model.insert_feedback(feed_back)
 
     if rating < 3:
         logger.info("Low-rated feedback received for error_id=%s (rating=%s)", error_id, rating)
-        # e.g. flag for review, trigger a re-generation, notify a queue, etc.
 
     return JSONResponse(
-        content={"result": ErrorEnums.FEEDBACK_INSERTED_APPROVED.value
-                 , "rating": rating}
+        content={"result": ErrorEnums.FEEDBACK_INSERTED_APPROVED.value, "rating": rating}
     )
