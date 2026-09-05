@@ -1,433 +1,230 @@
-# FixFlow 🔧
+<div align="center">
 
-> **AI-powered developer assistant for understanding, searching, and resolving software errors.**
+# 🔧 FixFlow
 
-FixFlow is an AI-driven developer support system that transforms raw error messages and technical problems into **context-aware, evidence-backed solutions**.
+**AI-powered developer assistant for understanding, searching, and resolving software errors.**
 
-Instead of relying on a single LLM response, FixFlow combines **NLP processing, semantic search, vector retrieval, external knowledge sources, classification, caching, and LLM-based generation** to retrieve relevant technical knowledge and synthesize actionable solutions.
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)](https://redis.io/)
+[![Qdrant](https://img.shields.io/badge/Qdrant-vector%20search-DC244C)](https://qdrant.tech/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-The system follows a **Retrieval-Augmented Generation (RAG)** architecture to ground generated answers in retrieved technical knowledge.
-
----
-
-## 🎯 Problem
-
-Developers often spend significant time debugging issues by:
-
-* Searching Stack Overflow manually
-* Searching GitHub repositories and issues
-* Finding similar error messages
-* Identifying the correct technology or framework
-* Comparing multiple solutions
-* Filtering irrelevant or outdated results
-
-Traditional keyword search can fail when the developer describes a problem differently from how it appears in existing technical content.
-
-**FixFlow addresses this problem through semantic retrieval, NLP-based understanding, multi-source search, and LLM-powered answer generation.**
+</div>
 
 ---
 
-# 🚀 Key Features
+## Overview
 
-* 🧠 **NLP-based error understanding**
-* 🏷️ **Technology / tag classification**
-* 🔎 **Semantic vector search**
-* 📚 **Retrieval-Augmented Generation (RAG)**
-* 💬 **Stack Overflow search**
-* 🐙 **GitHub search**
-* 🤖 **LLM-powered solution generation**
-* 🔗 **Source tracing**
-* 🛡️ **Confidence-aware answer processing**
-* ⚡ **Redis caching**
-* 🗄️ **MongoDB persistence**
-* 🧩 **Modular provider architecture**
-* 🚀 **FastAPI backend**
-* 🐳 **Docker-based infrastructure**
+FixFlow turns a raw error message — a stack trace, a build failure, a runtime exception — into a **context-aware, evidence-backed solution**.
 
----
+Instead of sending the raw query straight to an LLM and hoping for the best, FixFlow follows a **Retrieval-Augmented Generation (RAG)** pipeline: it understands the error with NLP, retrieves relevant technical knowledge from multiple sources (vector search, Stack Overflow, GitHub), ranks and filters that evidence, and only then generates a grounded answer — complete with sources and a confidence signal.
 
-# 🧠 System Architecture
+```
+User → LLM → Answer                     (naive approach)
 
-```text
-                         ┌─────────────────────┐
-                         │     User Query      │
-                         └──────────┬──────────┘
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │   NLP Processing    │
-                         │                     │
-                         │ • Error Extraction  │
-                         │ • Entity Extraction │
-                         │ • Tag Prediction    │
-                         └──────────┬──────────┘
-                                    │
-                                    ▼
-                    ┌──────────────────────────────┐
-                    │     Search Orchestrator      │
-                    └──────────────┬───────────────┘
-                                   │
-              ┌────────────────────┼────────────────────┐
-              ▼                    ▼                    ▼
-       ┌─────────────┐      ┌─────────────┐      ┌─────────────┐
-       │   Qdrant    │      │    Stack    │      │   GitHub    │
-       │ Vector DB   │      │   Overflow  │      │   Search    │
-       └──────┬──────┘      └──────┬──────┘      └──────┬──────┘
-              │                    │                    │
-              └────────────────────┼────────────────────┘
-                                   ▼
-                         ┌─────────────────────┐
-                         │ Candidate Results   │
-                         └──────────┬──────────┘
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │ Context Processing  │
-                         └──────────┬──────────┘
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │    LLM Generation   │
-                         └──────────┬──────────┘
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │ Final Solution      │
-                         │ + Sources           │
-                         └─────────────────────┘
+User → Understand → Retrieve → Process → LLM → Grounded Answer     (FixFlow)
 ```
 
 ---
 
-# 🔄 End-to-End Workflow
+## Table of Contents
 
-A typical FixFlow request follows this pipeline:
+- [Why FixFlow](#why-fixflow)
+- [Key Features](#key-features)
+- [Architecture](#architecture)
+- [API Reference](#api-reference)
+- [Project Structure](#project-structure)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
+- [Running with Docker](#running-with-docker)
+- [Frontend Demo Client](#frontend-demo-client)
+- [Example Walkthrough](#example-walkthrough)
+- [Engineering Principles](#engineering-principles)
+- [Current Limitations](#current-limitations)
+- [Roadmap](#roadmap)
+- [Author](#author)
+- [License](#license)
 
-```text
-User Problem
-     │
-     ▼
-API Request
-     │
-     ▼
-NLP Processing
-     │
-     ├── Error Extraction
-     ├── Entity Extraction
-     └── Technology Classification
-     │
-     ▼
-Search Orchestration
-     │
-     ├── Semantic Vector Search
-     ├── Stack Overflow Search
-     └── GitHub Search
-     │
-     ▼
-Candidate Aggregation
-     │
-     ▼
-Relevance Processing
-     │
-     ▼
-Context Construction
-     │
-     ▼
-LLM Generation
-     │
-     ▼
-Grounded Answer
-     │
-     ▼
-Sources / Confidence
+---
+
+## Why FixFlow
+
+Developers routinely lose time debugging by manually:
+
+- Searching Stack Overflow and GitHub issues
+- Matching a new error against similar ones seen before
+- Identifying the right framework/library context
+- Comparing conflicting solutions
+- Filtering out outdated or irrelevant results
+
+Keyword search breaks down when a developer's phrasing doesn't match how the issue is described elsewhere. FixFlow addresses this with **semantic retrieval, NLP-based error understanding, multi-source search, and LLM-powered synthesis** — grounding every generated answer in retrieved evidence rather than the model's unaided memory.
+
+---
+
+## Key Features
+
+| | |
+|---|---|
+| 🧠 NLP-based error understanding | Extracts error type, entities, and technical context from raw input |
+| 🏷️ Technology / tag classification | Identifies the relevant frameworks and libraries involved |
+| 🔎 Semantic vector search | Finds conceptually similar errors, not just keyword matches |
+| 📚 Retrieval-Augmented Generation | Grounds LLM answers in retrieved technical evidence |
+| 💬 Stack Overflow search | Pulls in real developer Q&A |
+| 🐙 GitHub search | Pulls in real repository issues and fixes |
+| 🤖 LLM-powered generation | Synthesizes retrieved evidence into one actionable answer |
+| 🔗 Source tracing | Every answer keeps a link back to the evidence it came from |
+| 🛡️ Confidence-aware processing | Guards against low-quality retrieval being surfaced as fact |
+| ⚡ Redis caching | Avoids redundant search and generation calls |
+| 🗄️ MongoDB persistence | Stores errors, jobs, answers, answer history, and feedback |
+| 🐳 Docker-based infrastructure | One-command startup for MongoDB, Redis, and Qdrant |
+
+---
+
+## Architecture
+
+```
+                     ┌─────────────────────┐
+                     │     User Query       │
+                     └──────────┬───────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │   NLP Processing     │
+                     │ • Error extraction   │
+                     │ • Entity extraction  │
+                     │ • Tag prediction     │
+                     └──────────┬───────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │  Search Orchestrator │
+                     └──────────┬───────────┘
+                                │
+          ┌─────────────────────┼─────────────────────┐
+          ▼                     ▼                     ▼
+   ┌─────────────┐      ┌─────────────┐       ┌─────────────┐
+   │   Qdrant    │      │    Stack    │       │   GitHub    │
+   │  Vector DB  │      │  Overflow   │       │   Search    │
+   └──────┬──────┘      └──────┬──────┘       └──────┬──────┘
+          │                    │                     │
+          └────────────────────┼─────────────────────┘
+                                ▼
+                     ┌─────────────────────┐
+                     │  Candidate Results   │
+                     └──────────┬───────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │  Context Processing  │
+                     │  (rank / filter by   │
+                     │   min_similarity)    │
+                     └──────────┬───────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │    LLM Generation    │
+                     └──────────┬───────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │   Final Solution     │
+                     │     + Sources        │
+                     └─────────────────────┘
 ```
 
-The architecture separates **query understanding, retrieval, processing, and generation** instead of sending the raw user query directly to an LLM.
+**Layered backend:**
 
----
-
-# 🔍 Retrieval-Augmented Generation
-
-FixFlow uses RAG to retrieve relevant technical knowledge before generating an answer.
-
-Instead of:
-
-```text
-User → LLM → Answer
 ```
-
-the system follows:
-
-```text
-User
- ↓
-Understand Query
- ↓
-Retrieve Evidence
- ↓
-Process Context
- ↓
-LLM
- ↓
-Grounded Answer
-```
-
-This approach helps reduce the model's dependence on its internal knowledge and provides relevant technical context during generation.
-
----
-
-# 🧩 Core Components
-
-## 1. NLP Processing
-
-The NLP layer processes the incoming technical problem and extracts useful information such as:
-
-* Error messages
-* Technical entities
-* Technologies
-* Relevant tags
-* Problem-related information
-
-This structured representation improves the downstream search process.
-
----
-
-## 2. Technology Classification
-
-FixFlow includes a classifier component for identifying technologies associated with a problem.
-
-For example:
-
-```text
-Input:
-"Gradle build fails after upgrading Kotlin"
-
-Possible technologies:
-
-Kotlin
-Gradle
-Android
-```
-
-The classifier is initialized through the project's classifier factory architecture.
-
----
-
-## 3. Semantic Search
-
-FixFlow uses sentence embeddings to represent technical queries semantically.
-
-The system uses:
-
-* Sentence Transformers
-* PyTorch
-* Vector similarity search
-* Qdrant
-
-Semantic retrieval allows the system to find technically similar content even when the wording is different.
-
-For example:
-
-```text
-"python cannot find installed package"
-```
-
-can retrieve content related to:
-
-```text
-"ModuleNotFoundError after installing a dependency"
-```
-
----
-
-## 4. Search Orchestration
-
-Search operations are coordinated through a dedicated search orchestration layer.
-
-The orchestration process separates:
-
-```text
-Query Understanding
-        ↓
-Search Strategy
-        ↓
-Candidate Retrieval
-        ↓
-Result Processing
-        ↓
-Answer Generation
-```
-
-This makes the retrieval layer easier to extend with additional sources or search strategies.
-
----
-
-## 5. Stack Overflow Integration
-
-Stack Overflow provides real-world developer questions and answers.
-
-It is particularly useful for:
-
-* Runtime errors
-* Dependency problems
-* Framework issues
-* Configuration problems
-* Common development errors
-
----
-
-## 6. GitHub Integration
-
-GitHub provides another source of technical knowledge from real repositories and development environments.
-
-The system can search for relevant information including:
-
-* Similar implementation problems
-* Repository issues
-* Configuration examples
-* Real-world fixes
-* Framework-specific solutions
-
----
-
-## 7. Answer Fusion
-
-Retrieved results can contain multiple solutions or partially overlapping information.
-
-FixFlow processes retrieved knowledge before presenting the final response.
-
-The objective is to transform multiple retrieved results into a **single useful and actionable solution**.
-
----
-
-## 8. Confidence Guard
-
-FixFlow includes a confidence-aware layer intended to prevent low-quality retrieval results from being blindly used as the final answer.
-
-This provides an additional control layer between retrieval and answer generation.
-
----
-
-## 9. Source Tracing
-
-FixFlow keeps track of retrieved technical sources so that generated answers can be associated with their underlying evidence.
-
-This improves transparency compared with a standalone LLM chatbot.
-
----
-
-# 🤖 LLM Architecture
-
-LLM components are abstracted through a factory-based architecture.
-
-This separates the application logic from the underlying model provider.
-
-Conceptually:
-
-```text
-Application
-     │
-     ▼
-LLM Factory
-     │
-     ▼
-Generation Provider
-```
-
-The project supports an architecture that can work with different LLM backends without tightly coupling the application to one provider.
-
-The dependency stack includes integrations such as:
-
-* Hugging Face
-* Transformers
-* LangChain
-* Groq
-* PyTorch
-* BitsAndBytes
-
----
-
-# 🗄️ Storage Architecture
-
-FixFlow uses different storage systems for different responsibilities.
-
-| Component      | Responsibility                       |
-| -------------- | ------------------------------------ |
-| MongoDB        | Application and document persistence |
-| Qdrant         | Vector similarity search             |
-| Redis          | Caching                              |
-| Stack Overflow | External technical knowledge         |
-| GitHub         | External technical knowledge         |
-
-This separation allows each infrastructure component to focus on its specific workload.
-
----
-
-# ⚡ Caching
-
-Redis is used as the caching layer.
-
-Caching can reduce repeated expensive operations such as:
-
-* Repeated queries
-* External search requests
-* Repeated retrieval operations
-* Frequently requested information
-
-This becomes particularly useful as query volume increases.
-
----
-
-# 🏗️ Backend Architecture
-
-FixFlow is implemented as a modular FastAPI backend.
-
-```text
 FastAPI
 │
-├── Routes
+├── Routes           → HTTP surface, request/response schemas
 │
 ├── Controllers
-│   ├── Data Controller
-│   ├── NLP Controller
-│   ├── Search Controllers
-│   ├── Search Orchestrator
-│   └── Processing Controllers
+│   ├── NlpController               → ranking, answer generation, feedback sentiment
+│   ├── SearchOrchestratorController → fans out to all retrieval sources
+│   ├── StackoverflowscearchController
+│   ├── GithubSearchController
+│   └── ProcessController
 │
-├── Models
+├── Models            → MongoDB access layer (Answers, Errors, Jobs, Feedback)
 │
 ├── Stores
-│   ├── LLM
-│   ├── Vector DB
+│   ├── LLM factory
+│   ├── Vector DB client (Qdrant)
 │   ├── Classifiers
-│   ├── Cache
-│   └── Templates
+│   ├── Cache (Redis)
+│   └── Prompt templates
 │
-└── Infrastructure
-    ├── MongoDB
-    ├── Redis
-    └── Qdrant
+└── Infrastructure    → MongoDB, Redis, Qdrant
 ```
-
-This structure follows a separation-of-concerns approach where the API layer is separated from business logic, AI components, and infrastructure.
 
 ---
 
-# 📁 Project Structure
+## API Reference
 
-```text
+All routes are served under the `/Fixflow-V1` prefix.
+
+### NLP & Answers — `/Fixflow-V1/nlp`
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/nlp/similar/{error_id}` | Finds and ranks web results similar to a stored error, using Redis to cache results |
+| `POST` | `/nlp/answer/{error_id}` | Retrieves context (cached or fresh search) and generates an LLM-backed answer, persisting it with automatic versioning |
+| `POST` | `/nlp/answer/{error_id}/feedback` | Records user feedback (text + score) on an answer, running sentiment analysis to compute a final rating |
+
+**`POST /nlp/answer/{error_id}`** accepts a query parameter and a JSON body:
+
+```
+POST /Fixflow-V1/nlp/answer/{error_id}?force_refresh=true
+Content-Type: application/json
+
+{
+  "pagesize": 5,
+  "min_similarity": 0.5,
+  "limit": 10
+}
+```
+
+- `force_refresh` (query param, default `false`) — when `true`, bypasses both the cached DB answer and the cached search results, and **widens the retrieval scope** (lower similarity threshold, higher result limit) so a regeneration actually explores a broader set of evidence instead of repeating the exact same narrow query.
+
+**`POST /nlp/answer/{error_id}/feedback`** body:
+
+```json
+{
+  "feedback_text": "This didn't fully solve my issue",
+  "score": 2
+}
+```
+
+A `rating < 3` is treated as a signal that the stored answer needs improvement.
+
+### Data — `/Fixflow-V1/data`
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/data/upload/` | Submits a new raw error/query for processing |
+| `GET`  | `/data/search/{error_id}` | Looks up a previously submitted error by ID |
+
+> Interactive, always-up-to-date documentation is available via Swagger UI once the server is running, at **`/docs`**.
+
+---
+
+## Project Structure
+
+```
 FixFlow/
 │
 ├── docker/
 │   ├── .env.example
-│   ├── .gitignore
 │   └── docker-compose.yaml
 │
-├── notebooks/
-│   └── Data exploration / experimentation
+├── notebooks/                  # data exploration / experimentation
 │
 ├── src/
-│   │
 │   ├── main.py
 │   ├── requirements.txt
 │   ├── .env.example
@@ -456,6 +253,7 @@ FixFlow/
 │   │
 │   ├── routes/
 │   │   ├── base.py
+│   │   ├── nlp.py
 │   │   └── schema/
 │   │
 │   └── stores/
@@ -465,218 +263,107 @@ FixFlow/
 │       ├── templetes/
 │       └── vectordb/
 │
-├── README.MD
-└── LICIENSE
+├── README.md
+└── LICENSE
 ```
 
 ---
 
-# 🛠️ Technology Stack
+## Tech Stack
 
-### Backend
-
-* Python
-* FastAPI
-* Uvicorn
-* Pydantic
-* MongoDB
-
-### AI / NLP
-
-* PyTorch
-* Transformers
-* Sentence Transformers
-* LangChain
-* Hugging Face
-* TextBlob
-* BitsAndBytes
-
-### LLM
-
-* Groq
-* Hugging Face-compatible models
-
-### Retrieval
-
-* Qdrant
-* Sentence embeddings
-* Vector similarity search
-* Stack Overflow
-* GitHub
-
-### Infrastructure
-
-* MongoDB
-* Redis
-* Qdrant
-* Docker
-* Docker Compose
+| Layer | Technologies |
+|---|---|
+| **Backend** | Python, FastAPI, Uvicorn, Pydantic, MongoDB (Motor) |
+| **AI / NLP** | PyTorch, Transformers, Sentence-Transformers, LangChain, Hugging Face, TextBlob, BitsAndBytes |
+| **LLM** | Groq, Hugging Face-compatible models (via a factory abstraction) |
+| **Retrieval** | Qdrant, sentence embeddings, vector similarity search, Stack Overflow, GitHub |
+| **Infrastructure** | MongoDB, Redis, Qdrant, Docker, Docker Compose |
 
 ---
 
-# 🚀 Getting Started
+## Getting Started
 
-## Requirements
+### Requirements
 
-* Python 3.10 or later
-* Miniconda
-* Docker
-* Docker Compose
-* Git
+- Python 3.10+
+- Miniconda (or any virtualenv tool)
+- Docker & Docker Compose
+- Git
 
----
-
-## System Dependencies
-
-On Ubuntu / WSL:
+### System Dependencies (Ubuntu / WSL)
 
 ```bash
 sudo apt update
 sudo apt install libpq-dev gcc python3-dev
 ```
 
----
+### 1. Clone the repository
 
-## Install Python Using Miniconda
+```bash
+git clone https://github.com/kerlosmelad12/FixFlow-.git
+cd FixFlow-
+```
 
-Create a dedicated Conda environment:
+### 2. Create and activate a Conda environment
 
 ```bash
 conda create -n fixflow python=3.10
-```
-
-Activate the environment:
-
-```bash
 conda activate fixflow
-```
-
-Verify the Python version:
-
-```bash
 python --version
 ```
 
----
-
-## Clone the Repository
-
-```bash
-git clone https://github.com/kerlosmelad12/FixFlow-.git
-cd FixFlow-
-```
-
----
-
-## Install Dependencies
-
-Move into the source directory:
+### 3. Install dependencies
 
 ```bash
 cd src
-```
-
-Install the required packages:
-
-```bash
 pip install -r requirements.txt
 ```
 
 ---
 
-## Configure Environment Variables
+## Configuration
 
-Create the environment file:
+Copy the example environment file and fill in your credentials:
 
 ```bash
 cp .env.example .env
 ```
 
-Update `.env` with the required configuration and API credentials.
-
-Example:
-
-```env
+```dotenv
 LLM_API_KEY=your_api_key
+MONGO_URI=mongodb://localhost:27017
+REDIS_URL=redis://localhost:6379
+QDRANT_URL=http://localhost:6333
 ```
 
-> **Never commit your `.env` file or expose API keys publicly.**
+> ⚠️ **Never commit your `.env` file or expose API keys publicly.**
 
 ---
 
-# 🐳 Run Docker Compose Services
+## Running with Docker
 
-Move to the Docker directory:
-
-```bash
-cd ../docker
-```
-
-Create the Docker environment file:
+FixFlow's infrastructure (MongoDB, Redis, Qdrant) is provisioned via Docker Compose.
 
 ```bash
-cp .env.example .env
-```
-
-Update `.env` with the required service configuration and credentials.
-
-Start the infrastructure:
-
-```bash
+cd docker
+cp .env.example .env      # fill in service credentials
 docker compose up -d
+docker compose ps          # verify all services are healthy
 ```
 
-Check running services:
-
-```bash
-docker compose ps
-```
-
----
-
-# 🚀 Run the FastAPI Server
-
-Move back to the source directory:
+### Start the API server
 
 ```bash
 cd ../src
-```
-
-Start the FastAPI application:
-
-```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 5000
 ```
 
-The API will be available at:
+| Resource | URL |
+|---|---|
+| API base | `http://localhost:5000` |
+| Swagger docs | `http://localhost:5000/docs` |
 
-```text
-http://localhost:5000
-```
-
-FastAPI Swagger documentation:
-
-```text
-http://localhost:5000/docs
-```
-
----
-
-# 🔎 Verify the Application
-
-Open:
-
-```text
-http://localhost:5000/docs
-```
-
-The Swagger UI allows you to explore and test the available FixFlow endpoints.
-
----
-
-# ⚡ Quick Start
-
-For a clean setup:
+### Quick start (all steps combined)
 
 ```bash
 conda create -n fixflow python=3.10
@@ -697,246 +384,96 @@ cd ../src
 uvicorn main:app --reload --host 0.0.0.0 --port 5000
 ```
 
-FixFlow should now be running locally.
+---
+
+## Frontend Demo Client
+
+A minimal static HTML/CSS/JS client is included for exercising the API by hand — uploading an error, fetching similar errors, generating an answer, and submitting feedback. Update `API_BASE` in `app.js` to point at your running server, then open `index.html` in a browser (or serve it with any static file server).
 
 ---
 
-# 🧪 Example
+## Example Walkthrough
 
-### Input
+**Input**
 
-```text
+```
 I'm getting ModuleNotFoundError when importing a package
 after installing it with pip.
 ```
 
-### Processing
+**Pipeline**
 
-```text
-Raw Query
-    ↓
-NLP Processing
-    ↓
-Technology / Error Identification
-    ↓
-Semantic Retrieval
-    ↓
-Stack Overflow / GitHub Search
-    ↓
-Candidate Processing
-    ↓
-Context Construction
-    ↓
-LLM Generation
-    ↓
-Final Answer + Sources
+```
+Raw Query → NLP Processing → Technology/Error Identification
+          → Semantic Retrieval → Stack Overflow/GitHub Search
+          → Candidate Processing → Context Construction
+          → LLM Generation → Final Answer + Sources
 ```
 
-### Example Response
+**Response**
 
-```text
-The package may have been installed in a different
-Python environment from the one running your application.
+```
+The package may have been installed in a different Python
+environment from the one running your application.
 
 Try:
+  python -m pip install <package>
 
-python -m pip install <package>
-
-Then verify the installation:
-
-python -c "import <package>"
-```
-
-The final answer is generated using the retrieved technical context.
-
----
-
-# 🔐 Engineering Principles
-
-## Retrieval Before Generation
-
-FixFlow follows:
-
-```text
-Retrieve → Process → Generate
-```
-
-rather than:
-
-```text
-Generate → Hope the answer is correct
+Then verify:
+  python -c "import <package>"
 ```
 
 ---
 
-## Modular AI Components
+## Engineering Principles
 
-The system separates:
-
-* Embedding
-* Classification
-* Retrieval
-* Generation
-* Caching
-* Storage
-
-This makes individual components easier to replace or improve.
+- **Retrieval before generation** — `Retrieve → Process → Generate`, never `Generate and hope`.
+- **Modular AI components** — embedding, classification, retrieval, generation, and caching are independently swappable.
+- **Factory-based providers** — LLM and classifier backends are abstracted so the provider can change without rewriting application logic.
+- **Separation of concerns** — `Routes → Controllers → Stores/AI components → Infrastructure`.
 
 ---
 
-## Factory-Based Providers
+## Current Limitations
 
-Provider-specific components are abstracted behind factory patterns.
-
-This allows the application to change models or providers without rewriting the complete application layer.
-
----
-
-## Separation of Concerns
-
-The architecture separates:
-
-```text
-Routes
-   ↓
-Controllers
-   ↓
-Stores / AI Components
-   ↓
-Infrastructure
-```
-
-This improves maintainability and extensibility.
+- Retrieval quality is bounded by embedding quality.
+- External APIs (Stack Overflow, GitHub) can introduce rate limits.
+- LLM generation can still produce incorrect assumptions even with grounding.
+- Technical sources can become outdated over time.
+- Retrieval thresholds (`min_similarity`, `limit`) require ongoing tuning.
+- A larger evaluation benchmark is needed for robust production-quality measurement.
 
 ---
 
-# 📊 Evaluation Strategy
+## Roadmap
 
-A production-oriented version of FixFlow should evaluate the system at multiple levels.
-
-### Retrieval Evaluation
-
-* Recall@K
-* Precision@K
-* MRR
-* nDCG
-
-### Generation Evaluation
-
-* Answer relevance
-* Faithfulness
-* Context utilization
-* Source correctness
-
-### System Evaluation
-
-* End-to-end latency
-* Retrieval latency
-* LLM latency
-* Cache hit rate
-* API error rate
-
-Separating retrieval evaluation from generation evaluation makes it easier to identify where system quality is improving or degrading.
+- Hybrid BM25 + semantic retrieval
+- Cross-encoder reranking
+- Query rewriting
+- Conversation-aware debugging
+- Repository-aware retrieval and code-context extraction
+- Multi-step agentic debugging
+- Automated retrieval evaluation and LLM-as-a-judge scoring
+- Observability, tracing, and retrieval-latency monitoring
+- CI/CD integration and automated regression testing
 
 ---
 
-# ⚠️ Current Limitations
+## Author
 
-FixFlow is an evolving AI engineering project.
-
-Current limitations include:
-
-* Retrieval quality depends on embedding quality
-* External APIs may introduce rate limits
-* LLMs can still produce incorrect assumptions
-* Technical sources may become outdated
-* Retrieval thresholds require tuning
-* A larger evaluation benchmark is required for robust production evaluation
+**Kerlos Melad** — AI / Machine Learning Engineer
+GitHub: [@kerlosmelad12](https://github.com/kerlosmelad12)
 
 ---
 
-# 🛣️ Future Improvements
+## License
 
-Potential improvements include:
-
-* Hybrid BM25 + semantic retrieval
-* Cross-encoder reranking
-* Query rewriting
-* Conversation-aware debugging
-* Repository-aware retrieval
-* Code-context extraction
-* Multi-step agentic debugging
-* Automated retrieval evaluation
-* LLM-as-a-judge evaluation
-* Observability and tracing
-* Retrieval latency monitoring
-* CI/CD integration
-* Automated regression testing
+This project is licensed under the **MIT License**. See [`LICENSE`](./LICENSE) for details.
 
 ---
 
-# 🔮 Future Vision
+<div align="center">
 
-The long-term goal is to evolve FixFlow from a technical answer retrieval system into an intelligent debugging platform.
+*"Don't make the LLM guess the solution. Retrieve the evidence, understand the problem, and then generate the fix."*
 
-```text
-                  Developer
-                      │
-                      ▼
-                FixFlow Agent
-                      │
-        ┌─────────────┼─────────────┐
-        ▼             ▼             ▼
-     Search        Analyze       Retrieve
-        │             │             │
-        ▼             ▼             ▼
-   Web / GitHub    Codebase      Knowledge
-        │             │             │
-        └─────────────┼─────────────┘
-                      ▼
-                Reasoning Layer
-                      │
-                      ▼
-                Proposed Fix
-                      │
-                      ▼
-                 Verification
-                      │
-                      ▼
-              Final Recommendation
-```
-
-The vision is to move from:
-
-> **"Here is a possible answer."**
-
-to:
-
-> **"I investigated the problem, retrieved relevant evidence, proposed a fix, and verified the solution."**
-
----
-
-# 👨‍💻 Author
-
-**Kerlos Melad**
-
-AI / Machine Learning Engineer
-
-GitHub: `kerlosmelad12`
-
----
-
-# 📄 License
-
-This project is licensed under the **MIT License**.
-
-See [`LICIENSE`](./LICIENSE) for details.
-
----
-
-## ⭐ Project Philosophy
-
-> **Don't make the LLM guess the solution.
-> Retrieve the evidence, understand the problem, and then generate the fix.**
-
-FixFlow is built around this principle.
+</div>
