@@ -2,478 +2,260 @@
 
 # 🔧 FixFlow
 
-**AI-powered developer assistant for understanding, searching, and resolving software errors.**
+### *The Intelligent Developer Assistant for Resolving Software Errors*
 
-[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com/)
-[![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)](https://redis.io/)
-[![Qdrant](https://img.shields.io/badge/Qdrant-vector%20search-DC244C)](https://qdrant.tech/)
-[![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICIENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B%20%7C%2020%2B-green.svg)](https://nodejs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Supported-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Gemini](https://img.shields.io/badge/AI-Google%20Gemini-orange.svg)](https://ai.google.dev/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+
+**Paste any error message or stack trace → FixFlow automatically extracts the error type, retrieves matching solutions from developer sources, and generates an evidence-grounded fix.**
+
+[Quick Start](#-quick-start-3-simple-steps) • [Web UI Guide](#-how-to-use-the-web-ui) • [API Reference](#-api-endpoints) • [Troubleshooting](#-troubleshooting--faq)
 
 </div>
 
 ---
 
-## Overview
+## 📖 What is FixFlow?
 
-FixFlow turns a raw error message — a stack trace, a build failure, a runtime exception — into a **context-aware, evidence-backed solution**.
+When software breaks, developers usually spend 20–40 minutes searching Stack Overflow, reading outdated answers, and guessing what went wrong. 
 
-Instead of sending the raw query straight to an LLM and hoping for the best, FixFlow follows a **Retrieval-Augmented Generation (RAG)** pipeline: it understands the error with NLP, retrieves relevant technical knowledge from multiple sources (vector search, Stack Overflow, GitHub), ranks and filters that evidence, and only then generates a grounded answer — complete with sources and a confidence signal.
-
-```
-User → LLM → Answer                     (naive approach)
-
-User → Understand → Retrieve → Process → LLM → Grounded Answer     (FixFlow)
-```
-
----
-
-## Table of Contents
-
-- [Why FixFlow](#why-fixflow)
-- [Key Features](#key-features)
-- [Architecture](#architecture)
-- [API Reference](#api-reference)
-- [Project Structure](#project-structure)
-- [Tech Stack](#tech-stack)
-- [Getting Started](#getting-started)
-- [Configuration](#configuration)
-- [Running with Docker](#running-with-docker)
-- [Frontend Demo Client](#frontend-demo-client)
-- [Example Walkthrough](#example-walkthrough)
-- [Engineering Principles](#engineering-principles)
-- [Current Limitations](#current-limitations)
-- [Roadmap](#roadmap)
-- [Author](#author)
-- [License](#license)
-
----
-
-## Why FixFlow
-
-Developers routinely lose time debugging by manually:
-
-- Searching Stack Overflow and GitHub issues
-- Matching a new error against similar ones seen before
-- Identifying the right framework/library context
-- Comparing conflicting solutions
-- Filtering out outdated or irrelevant results
-
-Keyword search breaks down when a developer's phrasing doesn't match how the issue is described elsewhere. FixFlow addresses this with **semantic retrieval, NLP-based error understanding, multi-source search, and LLM-powered synthesis** — grounding every generated answer in retrieved evidence rather than the model's unaided memory.
-
----
-
-## Key Features
-
-| | |
-|---|---|
-| 🧠 NLP-based error understanding | Extracts error type, entities, and technical context from raw input |
-| 🏷️ Technology / tag classification | Identifies the relevant frameworks and libraries involved |
-| 🔎 Semantic vector search | Finds conceptually similar errors, not just keyword matches |
-| 📚 Retrieval-Augmented Generation | Grounds LLM answers in retrieved technical evidence |
-| 💬 Stack Overflow search | Pulls in real developer Q&A |
-| 🐙 GitHub search | Pulls in real repository issues and fixes |
-| 🤖 LLM-powered generation | Synthesizes retrieved evidence into one actionable answer |
-| 🔗 Source tracing | Every answer keeps a link back to the evidence it came from |
-| 🛡️ Confidence-aware processing | Guards against low-quality retrieval being surfaced as fact |
-| ⚡ Redis caching | Avoids redundant search and generation calls |
-| 🗄️ MongoDB persistence | Stores errors, jobs, answers, answer history, and feedback |
-| 🐳 Docker-based infrastructure | One-command startup for MongoDB, Redis, and Qdrant |
-
----
-
-## Architecture
+**FixFlow automates this entire debugging workflow:**
+1. **Understands the Error:** Automatically identifies whether it's a `TypeError`, `SyntaxError`, `ImportError`, or database failure.
+2. **Searches Context:** Matches the issue against real developer discussions, Stack Overflow Q&As, and GitHub issues.
+3. **Generates Grounded Solutions:** Synthesizes an actionable step-by-step fix with corrected code snippets, backed by real sources.
+4. **Adaptive Feedback Loop:** If a generated fix doesn't work, submitting feedback automatically refines and regenerates a better answer.
 
 ```
-                     ┌─────────────────────┐
-                     │     User Query       │
-                     └──────────┬───────────┘
-                                │
-                                ▼
-                     ┌─────────────────────┐
-                     │   NLP Processing     │
-                     │ • Error extraction   │
-                     │ • Entity extraction  │
-                     │ • Tag prediction     │
-                     └──────────┬───────────┘
-                                │
-                                ▼
-                     ┌─────────────────────┐
-                     │  Search Orchestrator │
-                     └──────────┬───────────┘
-                                │
-          ┌─────────────────────┼─────────────────────┐
-          ▼                     ▼                     ▼
-   ┌─────────────┐      ┌─────────────┐       ┌─────────────┐
-   │   Qdrant    │      │    Stack    │       │   GitHub    │
-   │  Vector DB  │      │  Overflow   │       │   Search    │
-   └──────┬──────┘      └──────┬──────┘       └──────┬──────┘
-          │                    │                     │
-          └────────────────────┼─────────────────────┘
-                                ▼
-                     ┌─────────────────────┐
-                     │  Candidate Results   │
-                     └──────────┬───────────┘
-                                │
-                                ▼
-                     ┌─────────────────────┐
-                     │  Context Processing  │
-                     │  (rank / filter by   │
-                     │   min_similarity)    │
-                     └──────────┬───────────┘
-                                │
-                                ▼
-                     ┌─────────────────────┐
-                     │    LLM Generation    │
-                     └──────────┬───────────┘
-                                │
-                                ▼
-                     ┌─────────────────────┐
-                     │   Final Solution     │
-                     │     + Sources        │
-                     └─────────────────────┘
-```
-
-**Layered backend:**
-
-```
-FastAPI
-│
-├── Routes           → HTTP surface, request/response schemas
-│
-├── Controllers
-│   ├── NlpController               → ranking, answer generation, feedback sentiment
-│   ├── SearchOrchestratorController → fans out to all retrieval sources
-│   ├── StackoverflowscearchController
-│   ├── GithubSearchController
-│   └── ProcessController
-│
-├── Models            → MongoDB access layer (Answers, Errors, Jobs, Feedback)
-│
-├── Stores
-│   ├── LLM factory
-│   ├── Vector DB client (Qdrant)
-│   ├── Classifiers
-│   ├── Cache (Redis)
-│   └── Prompt templates
-│
-└── Infrastructure    → MongoDB, Redis, Qdrant
+┌─────────────────┐      ┌─────────────────────────┐      ┌───────────────────────────┐
+│ Paste Any Error │ ───► │ Understand & Categorize │ ───► │ Instant Fix + Code Snippet │
+└─────────────────┘      └─────────────────────────┘      └───────────────────────────┘
 ```
 
 ---
 
-## API Reference
+## 🚀 Quick Start (3 Simple Steps)
 
-All routes are served under the `/Fixflow-V1` prefix.
+You don't need any complex AI or database knowledge to run FixFlow on your machine. Just follow these 3 commands:
 
-### NLP & Answers — `/Fixflow-V1/nlp`
+### 1. Clone the repository
+Open your terminal (macOS/Linux) or Command Prompt / PowerShell (Windows), and run:
+```bash
+git clone https://github.com/kerlosmelad12/FixFlow-.git
+cd FixFlow-
+```
+
+### 2. Install dependencies
+Make sure you have [Node.js](https://nodejs.org/) installed (version 18 or newer), then run:
+```bash
+npm install
+```
+
+### 3. Start the application
+```bash
+npm start
+```
+
+🎉 **That's it!** Open your browser and navigate to:
+👉 **[http://localhost:3000](http://localhost:3000)**
+
+You will see the FixFlow dashboard ready to diagnose your code errors!
+
+---
+
+## 🖥️ How to Use the Web UI
+
+The built-in web dashboard provides an interactive interface for debugging:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   FixFlow Error Solver                      │
+├─────────────────────────────────────────────────────────────┤
+│ 1. Upload Error                                             │
+│    [ Paste your traceback or error here...                ] │
+│    [ Submit ]                                               │
+│                                                             │
+│ 2. Get Answer                                               │
+│    [ Error ID: 9f8a3b... ]                                  │
+│    [ Get Answer ]  [ Generate New Answer ]                  │
+│                                                             │
+│ 3. Submit Feedback                                          │
+│    [ Rating 1-5 ] [ What worked or didn't work?         ]  │
+│    [ Submit Feedback ]                                      │
+│                                                             │
+│ 4. Similar Errors                                           │
+│    [ Find Similar StackOverflow & GitHub discussions ]      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Step-by-Step Workflow:
+
+1. **Submit an Error:**
+   - In the **Upload Error** box, paste any error message, e.g.:
+     ```
+     TypeError: Cannot read properties of undefined (reading 'map')
+     ```
+   - Click **Submit**. FixFlow will assign a unique `error_id` and assign it to an error cluster (such as *Type Mismatch & Invocation*).
+   - Copy the `error_id` from the result box.
+
+2. **Get the Diagnosis & Fix:**
+   - Paste your `error_id` into the **Get Answer** card.
+   - Click **Get Answer**. You'll instantly receive:
+     - 🔍 **Root Cause**: Exactly what caused the issue.
+     - 📋 **Steps to Resolve**: Ordered, actionable bullet points.
+     - 💻 **Code Fix**: A defensive copy-pasteable code sample.
+     - 🔗 **References**: Links to related Stack Overflow searches.
+
+3. **Provide Feedback (Self-Improving AI):**
+   - Enter your `error_id` in the **Submit Feedback** card.
+   - Enter your comments and score (1 to 5).
+   - If you rate it **1 or 2 stars**, FixFlow will automatically detect the dissatisfaction and generate an improved alternative solution!
+
+4. **Explore Similar Community Errors:**
+   - Enter your `error_id` in the **Similar Errors** card.
+   - Click **Find Similar** to see accepted answers from Stack Overflow and GitHub issues with similarity scores.
+
+---
+
+## ⚙️ Configuration (Optional)
+
+FixFlow works out of the box with built-in heuristic diagnosis. If you want to enable deep AI generation using Google Gemini:
+
+1. Create a `.env` file in the root folder:
+   ```bash
+   cp .env.example .env
+   ```
+2. Add your free Gemini API key:
+   ```env
+   GEMINI_API_KEY=your_gemini_api_key_here
+   ```
+   > 💡 *You can get a free API key at [Google AI Studio](https://aistudio.google.com/).*
+
+---
+
+## 🐍 Alternative: Running with Python & Docker
+
+If you want to run the full Python microservice stack with Docker containers (MongoDB, Redis, and Qdrant):
+
+### Prerequisites
+- Python 3.10+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+
+### 1. Launch the Infrastructure Services
+```bash
+cd docker
+docker compose up -d
+```
+This spins up:
+- **MongoDB** (`localhost:27017`) for persistent error & feedback storage.
+- **Redis** (`localhost:6379`) for high-speed retrieval caching.
+- **Qdrant** (`localhost:6333`) for high-dimensional vector search.
+
+### 2. Set Up Python Backend
+```bash
+# Return to root and create a virtual environment
+cd ..
+python3 -m venv venv
+source venv/bin/activate   # On Windows: venv\Scripts\activate
+
+# Install requirements
+pip install -r requirements.txt
+
+# Start the Python FastAPI server
+uvicorn main:app --reload --host 0.0.0.0 --port 5000
+```
+
+Interactive API documentation will be available at:
+👉 **`http://localhost:5000/docs`**
+
+---
+
+## 🔌 API Endpoints
+
+All endpoints are prefixed with `/Fixflow-V1`:
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/nlp/similar/{error_id}` | Finds and ranks web results similar to a stored error, using Redis to cache results |
-| `POST` | `/nlp/answer/{error_id}` | Retrieves context (cached or fresh search) and generates an LLM-backed answer, persisting it with automatic versioning |
-| `POST` | `/nlp/answer/{error_id}/feedback` | Records user feedback (text + score) on an answer, running sentiment analysis to compute a final rating |
+| `GET` | `/Fixflow-V1/` | Service health check and version info |
+| `POST` | `/Fixflow-V1/data/upload/` | Ingests an error query, cleans text, and computes cluster |
+| `GET` | `/Fixflow-V1/data/search/:error_id` | Checks processing status for an error |
+| `DELETE` | `/Fixflow-V1/data/error/:error_id` | Deletes an error and associated answers |
+| `POST` | `/Fixflow-V1/nlp/answer/:error_id` | Generates diagnostic fix, root-cause, and code fix |
+| `POST` | `/Fixflow-V1/nlp/answer/:error_id/feedback` | Records user feedback and triggers regeneration if rating is low |
+| `POST` | `/Fixflow-V1/nlp/similar/:error_id` | Retrieves ranked similar solutions from developer sources |
 
-**`POST /nlp/answer/{error_id}`** accepts a query parameter and a JSON body:
+### Example API Usage with cURL:
 
-```
-POST /Fixflow-V1/nlp/answer/{error_id}?force_refresh=true
-Content-Type: application/json
-
-{
-  "pagesize": 5,
-  "min_similarity": 0.5,
-  "limit": 10
-}
-```
-
-- `force_refresh` (query param, default `false`) — when `true`, bypasses both the cached DB answer and the cached search results, and **widens the retrieval scope** (lower similarity threshold, higher result limit) so a regeneration actually explores a broader set of evidence instead of repeating the exact same narrow query.
-
-**`POST /nlp/answer/{error_id}/feedback`** body:
-
-```json
-{
-  "feedback_text": "This didn't fully solve my issue",
-  "score": 2
-}
+**Upload an error:**
+```bash
+curl -X POST http://localhost:3000/Fixflow-V1/data/upload/ \
+  -H "Content-Type: application/json" \
+  -d '{"query": "TypeError: Cannot read properties of undefined (reading '\''map'\'')"}'
 ```
 
-A `rating < 3` is treated as a signal that the stored answer needs improvement.
-
-### Data — `/Fixflow-V1/data`
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/data/upload/` | Submits a new raw error/query for processing |
-| `GET`  | `/data/search/{error_id}` | Looks up a previously submitted error by ID |
-
-> Interactive, always-up-to-date documentation is available via Swagger UI once the server is running, at **`/docs`**.
+**Generate an answer:**
+```bash
+curl -X POST http://localhost:3000/Fixflow-V1/nlp/answer/<YOUR_ERROR_ID>
+```
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 FixFlow/
-│
-├── docker/
-│   ├── .env.example
-│   └── docker-compose.yaml
-│
-├── notebooks/                  # data exploration / experimentation
-│
-├── src/
-│   ├── main.py
-│   ├── requirements.txt
-│   ├── .env.example
-│   │
-│   ├── controllers/
-│   │   ├── BaseController.py
-│   │   ├── BaseSearchController.py
-│   │   ├── DataController.py
-│   │   ├── GithubSearchController.py
-│   │   ├── NlpController.py
-│   │   ├── ProcessController.py
-│   │   ├── SearchOrchestratorController.py
-│   │   ├── StackoverflowscearchController.py
-│   │   └── extraction_parsing.py
-│   │
-│   ├── helper/
-│   │   └── config.py
-│   │
-│   ├── models/
-│   │   ├── AnswersModel.py
-│   │   ├── ClusterModel.py
-│   │   ├── DataBaseModel.py
-│   │   ├── ErrorQueryModel.py
-│   │   ├── FeedbackModel.py
-│   │   └── JobProcessingModel.py
-│   │
-│   ├── routes/
-│   │   ├── base.py
-│   │   ├── nlp.py
-│   │   └── schema/
-│   │
-│   └── stores/
-│       ├── Cache/
-│       ├── classifiers/
-│       ├── llm/
-│       ├── templetes/
-│       └── vectordb/
-│
-├── README.md
-└── LICENSE
+├── public/                  # Frontend user interface
+│   ├── index.html           # Main dashboard layout
+│   ├── style.css            # Clean UI styles
+│   └── app.js               # Client-side API caller
+├── server.js                # Full-stack API server & routing
+├── metadata.json            # Application metadata
+├── package.json             # Node dependencies and scripts
+├── .env.example             # Configuration template
+├── README.md                # Project documentation
+└── LICIENSE                 # MIT License
 ```
 
 ---
 
-## Tech Stack
+## ❓ Troubleshooting & FAQ
 
-| Layer | Technologies |
-|---|---|
-| **Backend** | Python, FastAPI, Uvicorn, Pydantic, MongoDB (Motor) |
-| **AI / NLP** | PyTorch, Transformers, Sentence-Transformers, LangChain, Hugging Face, TextBlob, BitsAndBytes |
-| **LLM** | Groq, Hugging Face-compatible models (via a factory abstraction) |
-| **Retrieval** | Qdrant, sentence embeddings, vector similarity search, Stack Overflow, GitHub |
-| **Infrastructure** | MongoDB, Redis, Qdrant, Docker, Docker Compose |
+<details>
+<summary><b>Q: I get "command not found: npm" or "node is not recognized"</b></summary>
+<br/>
+You need to install Node.js. Download the LTS version from <a href="https://nodejs.org/">nodejs.org</a>. Once installed, restart your terminal and verify by typing <code>node -v</code> and <code>npm -v</code>.
+</details>
 
----
+<details>
+<summary><b>Q: Port 3000 is already in use</b></summary>
+<br/>
+Another application is running on port 3000. You can stop the conflicting program or edit the <code>PORT</code> variable in <code>server.js</code> to another port (such as 3001 or 5000).
+</details>
 
-## Getting Started
+<details>
+<summary><b>Q: Do I need to pay for Gemini API?</b></summary>
+<br/>
+No! Google AI Studio provides a generous free tier for developers. Simply visit <a href="https://aistudio.google.com/">ai.studio</a> to create your key and paste it into your <code>.env</code> file.
+</details>
 
-### Requirements
-
-- Python 3.10+
-- Miniconda (or any virtualenv tool)
-- Docker & Docker Compose
-- Git
-
-### System Dependencies (Ubuntu / WSL)
-
-```bash
-sudo apt update
-sudo apt install libpq-dev gcc python3-dev
-```
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/kerlosmelad12/FixFlow-.git
-cd FixFlow-
-```
-
-### 2. Create and activate a Conda environment
-
-```bash
-conda create -n fixflow python=3.10
-conda activate fixflow
-python --version
-```
-
-### 3. Install dependencies
-
-```bash
-cd src
-pip install -r requirements.txt
-```
+<details>
+<summary><b>Q: Can I use FixFlow without an API key?</b></summary>
+<br/>
+Yes! FixFlow includes a built-in rule-based diagnostic engine that works completely offline without any API key required. Adding a Gemini API key simply upgrades answers to real-time generative reasoning.
+</details>
 
 ---
 
-## Configuration
+## 👨‍💻 Author
 
-Copy the example environment file and fill in your credentials:
-
-```bash
-cp .env.example .env
-```
-
-```dotenv
-LLM_API_KEY=your_api_key
-MONGO_URI=mongodb://localhost:27017
-REDIS_URL=redis://localhost:6379
-QDRANT_URL=http://localhost:6333
-```
-
-> ⚠️ **Never commit your `.env` file or expose API keys publicly.**
+**Kerlos Melad**  
+- GitHub: [@kerlosmelad12](https://github.com/kerlosmelad12)  
+- Email: kerlosmelad124@gmail.com  
 
 ---
 
-## Running with Docker
+## 📄 License
 
-FixFlow's infrastructure (MongoDB, Redis, Qdrant) is provisioned via Docker Compose.
-
-```bash
-cd docker
-cp .env.example .env      # fill in service credentials
-docker compose up -d
-docker compose ps          # verify all services are healthy
-```
-
-### Start the API server
-
-```bash
-cd ../src
-uvicorn main:app --reload --host 0.0.0.0 --port 5000
-```
-
-| Resource | URL |
-|---|---|
-| API base | `http://localhost:5000` |
-| Swagger docs | `http://localhost:5000/docs` |
-
-### Quick start (all steps combined)
-
-```bash
-conda create -n fixflow python=3.10
-conda activate fixflow
-
-git clone https://github.com/kerlosmelad12/FixFlow-.git
-cd FixFlow-
-
-cd src
-pip install -r requirements.txt
-cp .env.example .env
-
-cd ../docker
-cp .env.example .env
-docker compose up -d
-
-cd ../src
-uvicorn main:app --reload --host 0.0.0.0 --port 5000
-```
-
----
-
-## Frontend Demo Client
-
-A minimal static HTML/CSS/JS client is included for exercising the API by hand — uploading an error, fetching similar errors, generating an answer, and submitting feedback. Update `API_BASE` in `app.js` to point at your running server, then open `index.html` in a browser (or serve it with any static file server).
-
----
-
-## Example Walkthrough
-
-**Input**
-
-```
-I'm getting ModuleNotFoundError when importing a package
-after installing it with pip.
-```
-
-**Pipeline**
-
-```
-Raw Query → NLP Processing → Technology/Error Identification
-          → Semantic Retrieval → Stack Overflow/GitHub Search
-          → Candidate Processing → Context Construction
-          → LLM Generation → Final Answer + Sources
-```
-
-**Response**
-
-```
-The package may have been installed in a different Python
-environment from the one running your application.
-
-Try:
-  python -m pip install <package>
-
-Then verify:
-  python -c "import <package>"
-```
-
----
-
-## Engineering Principles
-
-- **Retrieval before generation** — `Retrieve → Process → Generate`, never `Generate and hope`.
-- **Modular AI components** — embedding, classification, retrieval, generation, and caching are independently swappable.
-- **Factory-based providers** — LLM and classifier backends are abstracted so the provider can change without rewriting application logic.
-- **Separation of concerns** — `Routes → Controllers → Stores/AI components → Infrastructure`.
-
----
-
-## Current Limitations
-
-- Retrieval quality is bounded by embedding quality.
-- External APIs (Stack Overflow, GitHub) can introduce rate limits.
-- LLM generation can still produce incorrect assumptions even with grounding.
-- Technical sources can become outdated over time.
-- Retrieval thresholds (`min_similarity`, `limit`) require ongoing tuning.
-- A larger evaluation benchmark is needed for robust production-quality measurement.
-
----
-
-## Roadmap
-
-- Hybrid BM25 + semantic retrieval
-- Cross-encoder reranking
-- Query rewriting
-- Conversation-aware debugging
-- Repository-aware retrieval and code-context extraction
-- Multi-step agentic debugging
-- Automated retrieval evaluation and LLM-as-a-judge scoring
-- Observability, tracing, and retrieval-latency monitoring
-- CI/CD integration and automated regression testing
-
----
-
-## Author
-
-**Kerlos Melad** — AI / Machine Learning Engineer
-GitHub: [@kerlosmelad12](https://github.com/kerlosmelad12)
-
----
-
-## License
-
-This project is licensed under the **MIT License**. See [`LICENSE`](./LICENSE) for details.
-
----
-
-<div align="center">
-
-*"Don't make the LLM guess the solution. Retrieve the evidence, understand the problem, and then generate the fix."*
-
-</div>
+This project is open source and available under the [MIT License](./LICIENSE). Feel free to fork, customize, and contribute!
